@@ -7,13 +7,13 @@ from multiprocessing.dummy import Pool as ThreadPool
 from random import randint
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--num_files', type=int,
+parser.add_argument('--numFiles', type=int,
                     help='Number of files to write')
-parser.add_argument('--num_lines', type=int,
+parser.add_argument('--numLines', type=int,
                     help='Number of lines to write in each file')
 args = parser.parse_args()
-num_files = args.num_files
-num_lines = args.num_lines
+num_files = args.numFiles
+num_lines = args.numLines
 
 def generate_random():
     """
@@ -32,7 +32,7 @@ def write_file(file_number, num_lines):
     :param file_number: The number of the file--will appear in filename
     :param num_lines: The number of lines to generate in the file
     """
-    file_name = 'david_shaub' + str(file_number) + '.txt'
+    file_name = 'david_shaub_' + str(file_number) + '.txt'
     with open(file_name, 'w') as outfile:
         for _ in range(num_lines):
             result = generate_random()

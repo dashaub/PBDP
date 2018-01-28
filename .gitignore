@@ -100,5 +100,6 @@ ENV/
 # mypy
 .mypy_cache/
 
-# dat files
+# data files
 *.txt
+*.pdf
