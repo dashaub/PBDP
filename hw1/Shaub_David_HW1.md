@@ -81,21 +81,23 @@ We insert two records:
 > insert into testtable (name, creation_date) values ('Richard Stallman', '2000-01-01');
 Query OK, 1 row affected (0.04 sec)
 
-> insert into testtable (name, creation_date) values ('Linus Torvalds', '2018-01-026');
+> insert into testtable (name, creation_date) values ('Linus Torvalds', '2018-01-26');
 Query OK, 1 row affected (0.02 sec)
 
-
+> insert into testtable (name, creation_date) values ('Andrey Kolmogorov', '1980-12-20');
+Query OK, 1 row affected (0.01 sec)
 ```
 And query to see that the results appear:
 ```
 > select * from testtable;
-+----+------------------+---------------+
-| ID | name             | creation_date |
-+----+------------------+---------------+
-|  1 | Richard Stallman | 2000-01-01    |
-|  2 | Linus Torvalds   | 2018-01-26    |
-+----+------------------+---------------+
-2 rows in set (0.00 sec)
++----+-------------------+---------------+
+| ID | name              | creation_date |
++----+-------------------+---------------+
+|  1 | Richard Stallman  | 2000-01-01    |
+|  2 | Linus Torvalds    | 2018-01-26    |
+|  3 | Andrey Kolmogorov | 1980-12-20    |
++----+-------------------+---------------+
+3 rows in set (0.00 sec)
 
 ```
 
