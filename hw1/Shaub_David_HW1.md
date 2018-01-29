@@ -6,7 +6,10 @@ David Shaub
 ----------
 
 ### Problem 1
-Run the program:
+See `hw1_problem1.py`.
+
+### Problem 2
+Transfer the program with Filezilla. Run the program:
 ```
 $ ./hw1_problem1.py --numFiles 13 --numLines 45
 ```
@@ -52,8 +55,6 @@ $ head david_shaub_0.txt
 3 3 9
 
 ```
-
-### Problem 2
 
 ### Problem 3
 #### MariaDB
@@ -217,7 +218,7 @@ h2 {
 We also see that this access is logged:
 ```
 $ sudo cat /var/log/httpd/access_log
-192.168.183.1 - - [29/Jan/2018:18:27:00 +0000] "GET /noindex/css/fonts/Light/OpenSans-Light.ttf HTTP/1.1" 404 240 "http://192.168.183.2/noindex/css/open-sans.css" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.132 Safari/537.36"
+192.168.183.1 - - [29/Jan/2018:18:27:00 +0000] "GET /noindex/css/fonts/Light/OpenSans-Light.ttf HTTP/1.1" 404 240 "http://192.168.183.1/noindex/css/open-sans.css" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.132 Safari/537.36"
 192.168.183.1 - - [29/Jan/2018:18:40:19 +0000] "GET / HTTP/1.1" 403 4897 "-" "curl/7.29.0"
 ```
 
@@ -241,12 +242,14 @@ openjdk version "1.8.0_161"
 OpenJDK Runtime Environment (build 1.8.0_161-b14)
 OpenJDK 64-Bit Server VM (build 25.161-b14, mixed mode)
 ```
+
 Python 2.7 is already installed:
 ```
 $ python2 --version
 Python 2.7.5
 ```
-Now we install python 3.6:
+
+Install python 3.6:
 ```
 $ sudo yum install -y yum-utils
 $ sudo yum groupinstall -y development
@@ -255,6 +258,7 @@ $ sudo yum install -y python36u
 $ python3.6 --version
 Python 3.6.4
 ```
+
 Install scala:
 ```
 $ wget https://www.scala-lang.org/files/archive/scala-2.12.4.rpm
