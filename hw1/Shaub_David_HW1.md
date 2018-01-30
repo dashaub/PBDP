@@ -4,11 +4,59 @@ author: David Shaub
 geometry: margin=2cm
 date: 2018-01-29
 ---
-
-
+Completed all problems--including Problem 4.
 
 ### Problem 1
 See `hw1_problem1.py`.
+```
+#!/usr/bin/python3
+"""
+Generates files with random numbers
+"""
+import argparse
+from multiprocessing.dummy import Pool as ThreadPool
+from random import randint
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--numFiles', type=int,
+                    help='Number of files to write')
+parser.add_argument('--numLines', type=int,
+                    help='Number of lines to write in each file')
+args = parser.parse_args()
+num_files = args.numFiles
+num_lines = args.numLines
+
+def generate_random():
+    """
+    Generate a single string containing three random numbers between
+    0 and 10 (inclusive) and separated by a space.
+    """
+    result = str(randint(0, 10)) + ' ' + str(randint(0, 10)) + ' '
+    result += str(randint(0, 10)) + '\n'
+    return result
+
+
+def write_file(file_number, num_lines):
+    """
+    Write a file with random numbers in the specified format
+    a given number of lines
+    :param file_number: The number of the file--will appear in filename
+    :param num_lines: The number of lines to generate in the file
+    """
+    file_name = 'david_shaub_' + str(file_number) + '.txt'
+    with open(file_name, 'w') as outfile:
+        for _ in range(num_lines):
+            result = generate_random()
+            outfile.write(result)
+
+
+workers = [i for i in range(num_files)]
+pool = ThreadPool(num_files)
+_ = pool.map(lambda x: write_file(file_number=x, num_lines=num_lines),
+             workers)
+
+```
+
 Run the program:
 ```
 $ ./hw1_problem1.py --numFiles 13 --numLines 45
@@ -57,7 +105,11 @@ $ head david_shaub_0.txt
 ```
 
 ### Problem 2
-For a first round of development and testing, a CentOS VM was created using Vagrant and VirtualBox as the backend hypervisor. To connect to the machine, the `vagrant ssh` command can be used: this follows the usual `ssh` syntax. Similarly, to transfer the `hw1_problem1.py` program to the machine, `vagrant scp` can be used. When repeating this process in AWS to create the AMI, regular `ssh` and `scp` were used.
+For a first round of development and testing, a CentOS VM was created using Vagrant and VirtualBox as the backend hypervisor. The usename is `vagrant` and the machine name is `master`.
+
+![](vagrant.png)
+
+To connect to the machine, the `vagrant ssh master` command can be used: this follows the usual `ssh` syntax. Similarly, to transfer the `hw1_problem1.py` program to the machine, `vagrant scp` can be used. When repeating this process in AWS to create the AMI, regular `ssh` and `scp` were used.
 
 Install JDK 1.8:
 ```
@@ -67,6 +119,8 @@ openjdk version "1.8.0_161"
 OpenJDK Runtime Environment (build 1.8.0_161-b14)
 OpenJDK 64-Bit Server VM (build 25.161-b14, mixed mode)
 ```
+
+![](java.png)
 
 Python 2.7 is already installed:
 ```
@@ -92,11 +146,16 @@ $ scala -version
 Scala code runner version 2.12.4 -- Copyright 2002-2017, LAMP/EPFL and Lightbend, Inc.
 ```
 
-The program can run in this environment:
+We'll create a link to python3.6 for convenience. The program can run in this environment:
 ```
 $ sudo ln /usr/bin/python3.6 /usr/bin/python3
 $ ./hw1_problem1.py --numFiles 13 --numLines 45
 ```
+![](program_execution.png)
+
+We see that scala and python also exist in this environment:
+
+![](scala_python.png)
 
 ### Problem 3
 #### MariaDB
@@ -131,7 +190,7 @@ creation_date date
 Query OK, 0 rows affected (0.10 sec)
 
 ```
-We insert two records:
+We insert three records:
 ```
 > insert into testtable (name, creation_date) values ('Richard Stallman', '2000-01-01');
 Query OK, 1 row affected (0.04 sec)
@@ -155,6 +214,8 @@ And query to see that the results appear:
 3 rows in set (0.00 sec)
 
 ```
+![](mariadb.png)
+
 #### Apache
 Modify `firewalld` to allow connections:
 ```
@@ -272,11 +333,15 @@ h2 {
   		<p class="lead">This page is used to test the proper operation of the <a href="http://apache.org">Apache HTTP server</a> after it has been installed. If you can read this page it means that this site is working properly. This server is powered by <a href="http://centos.org">CentOS</a>.</p>
 		</div>
 ```
+![](apache_test.png)
+
 We also see that this access is logged. Both a browser and curl request from our OS X host OS appear:
 ```
 $ sudo cat /var/log/httpd/access_log
 192.168.183.1 - - [29/Jan/2018:18:27:00 +0000] "GET /noindex/css/fonts/Light/OpenSans-Light.ttf HTTP/1.1" 404 240 "http://192.168.183.1/noindex/css/open-sans.css" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.132 Safari/537.36"
 192.168.183.1 - - [29/Jan/2018:18:40:19 +0000] "GET / HTTP/1.1" 403 4897 "-" "curl/7.29.0"
 ```
+
+![](apache_log.png)
 
 ### Problem 4
