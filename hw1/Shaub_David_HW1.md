@@ -1,9 +1,11 @@
-Homework 1
-===========
-David Shaub
------------
-2017-01-27
-----------
+---
+title: Homework 1
+author: David Shaub
+geometry: margin=2cm
+date: 2018-01-29
+---
+
+
 
 ### Problem 1
 See `hw1_problem1.py`.
@@ -270,7 +272,7 @@ h2 {
   		<p class="lead">This page is used to test the proper operation of the <a href="http://apache.org">Apache HTTP server</a> after it has been installed. If you can read this page it means that this site is working properly. This server is powered by <a href="http://centos.org">CentOS</a>.</p>
 		</div>
 ```
-We also see that this access is logged:
+We also see that this access is logged. Both a browser and curl request from our OS X host OS appear:
 ```
 $ sudo cat /var/log/httpd/access_log
 192.168.183.1 - - [29/Jan/2018:18:27:00 +0000] "GET /noindex/css/fonts/Light/OpenSans-Light.ttf HTTP/1.1" 404 240 "http://192.168.183.1/noindex/css/open-sans.css" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.132 Safari/537.36"
