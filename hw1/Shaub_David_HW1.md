@@ -133,7 +133,7 @@ Install python 3.6:
 $ sudo yum install -y yum-utils
 $ sudo yum groupinstall -y development
 $ sudo yum install -y https://centos7.iuscommunity.org/ius-release.rpm
-$ sudo yum install -y python36u
+$ sudo yum install -y python36u python36u-pip python36u-devel
 $ python3.6 --version
 Python 3.6.4
 ```
@@ -152,6 +152,7 @@ $ sudo ln /usr/bin/python3.6 /usr/bin/python3
 $ ./hw1_problem1.py --numFiles 13 --numLines 45
 ```
 ![](program_execution.png)
+Note: we may have to set execution permissions with `chmod a+x hw1_problem1.py`.
 
 We see that scala and python also exist in this environment:
 
@@ -168,6 +169,11 @@ $ sudo systemctl enable mariadb
 Created symlink from /etc/systemd/system/multi-user.target.wants/mariadb.service to /usr/lib/systemd/system/mariadb.service.
 $ mysql --version
 mysql  Ver 15.1 Distrib 5.5.56-MariaDB, for Linux (x86_64) using readline 5.1
+```
+
+Enter the MariaDB shell. Note that our installation from the CentOS repo *does not* require a password:
+```
+$ mysql -u root
 ```
 
 Inside the mariadb shell, we create our database and select it:
