@@ -113,7 +113,7 @@ To connect to the machine, the `vagrant ssh master` command can be used: this fo
 
 Install JDK 1.8:
 ```
-$ sudo yum install -y java-1.8-openjdk
+$ sudo yum install -y java-1.8.0-openjdk
 $ java -version
 openjdk version "1.8.0_161"
 OpenJDK Runtime Environment (build 1.8.0_161-b14)
@@ -223,6 +223,11 @@ And query to see that the results appear:
 ![](mariadb.png)
 
 #### Apache
+Install Apache:
+```
+$ sudo yum install httpd
+```
+
 Modify `firewalld` to allow connections:
 ```
 $ sudo firewall-cmd --permanent --add-port=80/tcp
@@ -351,3 +356,4 @@ $ sudo cat /var/log/httpd/access_log
 ![](apache_log.png)
 
 ### Problem 4
+The AMI is named `cscie88--de1b01d7bbd13438dfbf1e25d75a472e3c9e37de` and is in the Ohio region.
