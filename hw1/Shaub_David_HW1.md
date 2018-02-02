@@ -2,7 +2,7 @@
 title: Homework 1
 author: David Shaub
 geometry: margin=2cm
-date: 2018-01-29
+date: 2018-02-01
 ---
 Completed all problems--including Problem 4.
 
@@ -266,6 +266,8 @@ $ ip a s
     inet6 fe80::a00:27ff:fef7:8bc2/64 scope link 
        valid_lft forever preferred_lft forever
 ```
+![](apache_test.png)
+![](apache_log.png)
 
 From our host OS, we can validate that the Apache server is running within our guest VM by opening our webbrowser to the IP address, or we can use curl:
 ```
@@ -344,7 +346,6 @@ h2 {
   		<p class="lead">This page is used to test the proper operation of the <a href="http://apache.org">Apache HTTP server</a> after it has been installed. If you can read this page it means that this site is working properly. This server is powered by <a href="http://centos.org">CentOS</a>.</p>
 		</div>
 ```
-![](apache_test.png)
 
 We also see that this access is logged. Both a browser and curl request from our OS X host OS appear:
 ```
@@ -353,7 +354,7 @@ $ sudo cat /var/log/httpd/access_log
 192.168.183.1 - - [29/Jan/2018:18:40:19 +0000] "GET / HTTP/1.1" 403 4897 "-" "curl/7.29.0"
 ```
 
-![](apache_log.png)
+
 
 ### Problem 4
 The AMI is named `cscie88--de1b01d7bbd13438dfbf1e25d75a472e3c9e37de` and is in the Ohio region.
