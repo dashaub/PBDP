@@ -37,6 +37,6 @@ def work_cpu(thread_num):
         _ = calc_fib(10**6)
 
 
-workers = [i for i in range(num_files)]
-pool = ThreadPool(num_files)
+workers = [i for i in range(num_threads)]
+pool = ThreadPool(num_threads)
 _ = pool.map(lambda x: work_cpu(thread_num=x), workers)
