@@ -1,45 +1,42 @@
-#!/usr/bin/python3
 """
-Generates files with random numbers
+Launch several threads, each performing a CPU-intensive task
 """
 import argparse
 from multiprocessing.dummy import Pool as ThreadPool
-from random import randint
+import time
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--numFiles', type=int,
-                    help='Number of files to write')
-parser.add_argument('--numLines', type=int,
-                    help='Number of lines to write in each file')
+parser.add_argument('--numThreads', type=int,
+                    help='Number of threads to launch')
 args = parser.parse_args()
-num_files = args.numFiles
-num_lines = args.numLines
-
-def generate_random():
-    """
-    Generate a single string containing three random numbers between
-    0 and 10 (inclusive) and separated by a space.
-    """
-    result = str(randint(0, 10)) + ' ' + str(randint(0, 10)) + ' '
-    result += str(randint(0, 10)) + '\n'
-    return result
+num_threads = args.numThreads
 
 
-def write_file(file_number, num_lines):
+def calc_fib(number):
     """
-    Write a file with random numbers in the specified format
-    a given number of lines
-    :param file_number: The number of the file--will appear in filename
-    :param num_lines: The number of lines to generate in the file
+    A naive implementation to generate the specified Fibonacci number
+    :param number: The Fibonacci number to generate
     """
-    file_name = 'david_shaub_' + str(file_number) + '.txt'
-    with open(file_name, 'w') as outfile:
-        for _ in range(num_lines):
-            result = generate_random()
-            outfile.write(result)
+    current_num = 0
+    next_num = 1
+    for num in range(number):
+        tmp = current_num
+        current_num = next_num
+        next_num += tmp
+    return current_num
+
+
+def work_cpu(thread_num):
+    """
+    Generate a CPU load. This function will never terminate.
+    :param thread_num: A number to identify this process.
+    """
+    while True:
+        time.sleep(1)
+        print('Launching worker ' + str(thread_num))
+        _ = calc_fib(10**6)
 
 
 workers = [i for i in range(num_files)]
 pool = ThreadPool(num_files)
-_ = pool.map(lambda x: write_file(file_number=x, num_lines=num_lines),
-             workers)
+_ = pool.map(lambda x: work_cpu(thread_num=x), workers)
