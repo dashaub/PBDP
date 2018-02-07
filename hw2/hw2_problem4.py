@@ -57,7 +57,9 @@ class LogProcessor():
                 url = parsed[1]
                 # User has trailing newline
                 user = parsed[2].split('\n')[0]
+                self.lock.acquire()
                 self.process_data(url, user)
+                self.lock.release()
                 # Read next line
                 line = f.readline()
 
