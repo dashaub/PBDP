@@ -5,12 +5,16 @@ import threading
 from multiprocessing.dummy import Pool as ThreadPool
 
 SEP = '\t'
-class LogProcessor():
+class LogProcessor(object):
+    """
+    A class for processing log files and printing information about them
+    """
     def __init__(self, num_files=4):
         """
         Constructor
         :param num_files: The number of files (and threads)
         """
+        self.num_threads = num_files
         # Lock for the shared state
         self.lock = threading.Lock()
         # The shared state, stored as nested dict
@@ -33,10 +37,10 @@ class LogProcessor():
                 count = self.shared[url][user]
                 # Increment the count
                 self.shared[url][user] = count + 1
-            except(KeyError) as ke2:
+            except KeyError:
                 # User does not exist in subdict, so create it
                 self.shared[url][user] = 1
-        except(KeyError) as ke1:
+        except KeyError:
             # URL does not exist, so create it and a subdict with the user
             self.shared[url] = {user: 1}
 
@@ -45,15 +49,14 @@ class LogProcessor():
         Process a single logfile
         :param filename: The filename of the log to process
         """
-        with open(filename, 'r') as f:
+        with open(filename, 'r') as file_con:
             # Read first line
-            line = f.readline()
+            line = file_con.readline()
             # Stop reading on EOF
-            while(len(line) > 0):
+            while line:
                 # Split the string into a list with timestamp, URL, and user
                 parsed = line.split(SEP)
                 # Timestamp isn't actually needed
-                timestamp = parsed[0]
                 url = parsed[1]
                 # User has trailing newline
                 user = parsed[2].split('\n')[0]
@@ -61,14 +64,52 @@ class LogProcessor():
                 self.process_data(url, user)
                 self.lock.release()
                 # Read next line
-                line = f.readline()
+                line = file_con.readline()
 
     def process_all(self):
         """
-        Process all the log files.
+        Process all the log files. Use one thread for each log file.
         """
-        for filename in self.files:
-            self.process_log(filename)
+        pool = ThreadPool(self.num_threads)
+        _ = pool.map(lambda x: self.process_log(filename=x), self.files)
 
-lp = LogProcessor()
-lp.process_all()
+    def print_results(self):
+        """
+        Print all the results
+        """
+        self.print_q1()
+        self.print_q2()
+        self.print_q3()
+
+    def print_q1(self):
+        """
+        Print the results for the first query
+        Count of unique URLs
+        """
+        num_logs = len(self.shared)
+        print('Number of distinct URLs: {}'.format(num_logs))
+
+    def print_q2(self):
+        """
+        Print the results for the second query
+        Count of unique visitors per URL
+        """
+        print('Number of distinct visitors for each URL')
+        for url in self.shared:
+            num_visitors = len(self.shared[url])
+            print('{}: {}'.format(url, num_visitors))
+
+    def print_q3(self):
+        """
+        Print the results for the third query
+        Number of visits for each URL per user
+        """
+        print('Number of visits for each URL-user combination')
+        for url in self.shared:
+            for user in self.shared[url]:
+                num_visits = self.shared[url][user]
+                print('{}: {}: {}'.format(url, user, num_visits))
+
+log_processor = LogProcessor()
+log_processor.process_all()
+log_processor.print_results()

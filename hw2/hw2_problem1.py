@@ -19,7 +19,7 @@ def calc_fib(number):
     """
     current_num = 0
     next_num = 1
-    for num in range(number):
+    for _ in range(number):
         tmp = current_num
         current_num = next_num
         next_num += tmp
@@ -34,7 +34,7 @@ def work_cpu(thread_num):
     while True:
         time.sleep(1)
         print('Launching worker ' + str(thread_num))
-        _ = calc_fib(10**6)
+        calc_fib(10**6)
 
 
 workers = [i for i in range(num_threads)]

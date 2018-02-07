@@ -17,8 +17,8 @@ def load_data():
     A naive implementation to generate the specified Fibonacci number
     """
     source = 'data.dat'
-    with open(source, 'rb') as f:
-        _ = f.read()
+    with open(source, 'rb') as file_con:
+        _ = file_con.read()
 
 
 def work_io(thread_num):
@@ -29,7 +29,7 @@ def work_io(thread_num):
     while True:
         time.sleep(1)
         print('Launching worker ' + str(thread_num))
-        _ = load_data()
+        load_data()
 
 
 workers = [i for i in range(num_threads)]
