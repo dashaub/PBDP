@@ -1,6 +1,8 @@
 """
 Load 4 logfiles--each with a thread--and answer 3 queries about the data
 """
+import threading
+from multiprocessing.dummy import Pool as ThreadPool
 
 SEP = '\t'
 class LogProcessor():
@@ -25,18 +27,18 @@ class LogProcessor():
         """
         try:
             # Test if the URL exists already
-            _ = shared[url]
+            _ = self.shared[url]
             try:
                 # Now test if the subdict exists
-                count = shared[url][user]
+                count = self.shared[url][user]
                 # Increment the count
-                shared[url][user] = count + 1
+                self.shared[url][user] = count + 1
             except(KeyError) as ke2:
                 # User does not exist in subdict, so create it
-                shared[url][user] = 1
+                self.shared[url][user] = 1
         except(KeyError) as ke1:
             # URL does not exist, so create it and a subdict with the user
-            shared[url] = {user: 1}
+            self.shared[url] = {user: 1}
 
     def process_log(self, filename):
         """
@@ -53,8 +55,9 @@ class LogProcessor():
                 # Timestamp isn't actually needed
                 timestamp = parsed[0]
                 url = parsed[1]
-                user = parsed[2]
-                process_data(url, user)
+                # User has trailing newline
+                user = parsed[2].split('\n')[0]
+                self.process_data(url, user)
                 # Read next line
                 line = f.readline()
 
@@ -64,3 +67,6 @@ class LogProcessor():
         """
         for filename in self.files:
             self.process_log(filename)
+
+lp = LogProcessor()
+lp.process_all()
