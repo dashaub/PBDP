@@ -14,7 +14,7 @@ num_threads = args.numThreads
 
 def load_data():
     """
-    A naive implementation to generate the specified Fibonacci number
+    Load binary data from a data.dat file
     """
     source = 'data.dat'
     with open(source, 'rb') as file_con:
