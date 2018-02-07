@@ -34,7 +34,7 @@ def work_cpu(thread_num):
     while True:
         time.sleep(1)
         print('Launching worker ' + str(thread_num))
-        calc_fib(10**6)
+        calc_fib(10**7)
 
 
 workers = [i for i in range(num_threads)]

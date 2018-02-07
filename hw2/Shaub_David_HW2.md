@@ -45,7 +45,7 @@ def work_cpu(thread_num):
     while True:
         time.sleep(1)
         print('Launching worker ' + str(thread_num))
-        calc_fib(10**6)
+        calc_fib(10**7)
 
 
 workers = [i for i in range(num_threads)]
@@ -54,6 +54,11 @@ _ = pool.map(lambda x: work_cpu(thread_num=x), workers)
 ```
 
 ### Problem 2
+A 500MB dummy `data.dat` file was created with random data, and each thread repeatedly reads from this file to generate IO load:
+```
+openssl rand  $(( 500*2**20 )) > data.dat
+```
+
 See `hw2_problem2.py`:
 ```
 """
@@ -216,3 +221,10 @@ log_processor = LogProcessor()
 log_processor.process_all()
 log_processor.print_results()
 ```
+The processed data are held inside of a nested python dictionary. The outer dict has keys for each URL. The value for each key is then another dict that has keys for each user and values that are counts for the number of vists that user made to the URL. So the dictionaries look like `{url: {user: count}`, and an example might look like `{'http://www.foo.com/bar': {'alice': 13}}`. To update the shared state, we acquire a lock before we modify the data structure and then remove the lock immediately after we finished the modification: this allows other worker threads to read and parse data in the log file simultaneously while another thread is updating a count, adding a new user, or adding a new URL.
+
+This structure was chosen because it makes answering the queries relatively easy.
+
+1.  To get the number of unique urls, we simply need to count the length of the keys of the outer dict.
+2.  To get the number of disctinct visitors to each URL, we count the number of values for each URL.
+3.  To return the number of visits for each URL per user, we enumerate all of the nested values and print a tuple like `(url, user, count)`

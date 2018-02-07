@@ -12,13 +12,16 @@ args = parser.parse_args()
 num_threads = args.numThreads
 
 
-def load_data():
+def write_data(thread_num):
     """
-    Load binary data from a data.dat file
+    Write junk data to a data_*.dat file
+    :param thread_num: A suffix that 
     """
-    source = 'data.dat'
-    with open(source, 'rb') as file_con:
-        _ = file_con.read()
+    num_lines = 100*2**20
+    source = 'data_' + str(thread_num) + '.dat'
+    with open(source, 'w') as file_con:
+        for _ in range(num_lines)
+            file_con.write('foobar')
 
 
 def work_io(thread_num):
@@ -29,7 +32,7 @@ def work_io(thread_num):
     while True:
         time.sleep(1)
         print('Launching worker ' + str(thread_num))
-        load_data()
+        write_data(thread_num)
 
 
 workers = [i for i in range(num_threads)]
