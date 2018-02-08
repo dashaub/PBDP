@@ -104,11 +104,12 @@ class LogProcessor(object):
         Print the results for the third query
         Number of visits for each URL per user
         """
-        print('Number of visits for each URL-user combination')
+        print('Number of visits for each URL')
         for url in self.shared:
+            num_visits = 0
             for user in self.shared[url]:
-                num_visits = self.shared[url][user]
-                print('{}: {}: {}'.format(url, user, num_visits))
+                num_visits += self.shared[url][user]
+            print('{}: {}'.format(url, num_visits))
 
 log_processor = LogProcessor()
 log_processor.process_all()
