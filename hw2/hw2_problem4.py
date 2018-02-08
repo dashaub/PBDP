@@ -25,7 +25,6 @@ class LogProcessor(object):
     def process_data(self, url, user):
         """
         Add a single observation to the shared state
-        :param timestamp: The timestamp of the observation
         :param url: The URL of the observation
         :param user: The uesr of the observation
         """
