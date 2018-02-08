@@ -2,7 +2,8 @@
 Launch several threads, each performing an IO-intensive task
 """
 import argparse
-from multiprocessing.dummy import Pool as ThreadPool
+import multiprocessing
+import random
 import time
 
 parser = argparse.ArgumentParser()
@@ -17,11 +18,11 @@ def write_data(thread_num):
     Write junk data to a data_*.dat file
     :param thread_num: A suffix that is added to each file.
     """
-    num_lines = 100*2**20
+    num = 1000000
     source = 'data_' + str(thread_num) + '.dat'
     with open(source, 'w') as file_con:
-        for _ in range(num_lines):
-            file_con.write('foobar')
+        for _ in range(num):
+            file_con.write(str(random.random()))
 
 
 def work_io(thread_num):
@@ -34,7 +35,6 @@ def work_io(thread_num):
         print('Launching worker ' + str(thread_num))
         write_data(thread_num)
 
-
-workers = [i for i in range(num_threads)]
-pool = ThreadPool(num_threads)
-_ = pool.map(lambda x: work_io(thread_num=x), workers)
+for thread_num in range(num_threads):
+    job = multiprocessing.Process(target=work_io, args=(thread_num, ))
+    job.start()

@@ -2,7 +2,7 @@
 Launch several threads, each performing a CPU-intensive task
 """
 import argparse
-from multiprocessing.dummy import Pool as ThreadPool
+import multiprocessing
 import time
 
 parser = argparse.ArgumentParser()
@@ -36,7 +36,7 @@ def work_cpu(thread_num):
         print('Launching worker ' + str(thread_num))
         calc_fib(10**7)
 
+for thread_num in range(num_threads):
+    job = multiprocessing.Process(target=work_cpu, args=(thread_num, ))
+    job.start()
 
-workers = [i for i in range(num_threads)]
-pool = ThreadPool(num_threads)
-_ = pool.map(lambda x: work_cpu(thread_num=x), workers)

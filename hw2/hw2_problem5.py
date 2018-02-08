@@ -45,7 +45,7 @@ class LogProcessor(object):
         uid = hashlib.md5(timestamp + url + user).hexdigest()
         statement = 'insert into logs values ("{}", "{}", "{}", "{}");'.format(uid,timestamp,
                                                                       url, user)
-        #print statement
+        print statement
         self.lock.acquire()
         try:
             self.db.cursor().execute(statement)
