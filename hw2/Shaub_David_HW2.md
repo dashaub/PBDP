@@ -10,7 +10,7 @@ Completed all problems including problem 5.
 See `hw2_problem1.py`
 ```
 ```
-Screenshots of the program launched with 2, 4, 8, and 16 threads on a **4 CPU** instance are included below:
+Resource utilization statistics were collected with `htop -d100` and `sudo iotop -d10` to smooth results. Screenshots of the program launched with 2, 4, 8, and 16 threads on a **4 CPU** instance are included below:
 
 ![2 threads](4_cpu_2.png)
 
@@ -22,8 +22,22 @@ Screenshots of the program launched with 2, 4, 8, and 16 threads on a **4 CPU** 
 
 ![16 threads](4_cpu_16.png)
 
+Screenshots of the program launched with 2, 4, 8, and 16 threads on a **8 CPU** instance are included below:
+
+![2 threads](8_cpu_2.png)
+
+![4 threads](8_cpu_4.png)
+
+![8 threads](8_cpu_8.png)
+
+![16 threads](8_cpu_16.png)
+
+Unsurprisingly, the machine with 8 cores research saturation slower than the 4 core machine: when 8 threads are running these does not appear to be resource contention, and even when we rearch 16 threads each process appears to be scheduled half of the time.
+
 
 ### Problem 2
+For an IO-intensive task, each thread generates and writes 1,000,000 random numbers into its own file. After this completes, it loops and continues the process indefinitely, overwriting the same file. Each of these files reaches a size of ~14MB and we write a single number at a time, so this becomes an IO-heavy task. Although the kernel may buffer some of the writes, when many threads are active we very likely also perform more disk seek operations.
+See `hw2_problem2.py`.
 ```
 
 ```
@@ -41,8 +55,41 @@ Although this is an IO-heavy task, when the number of threads becomes large, we 
 
 ![CPU load with 16 threads](4_io_max.png)
 
-### Problem 3
+When we repeat this experiment on a **8 CPU** instance, the results do not markedly change:
 
+![2 threads](8_io_2.png)
+
+![4 threads](8_io_4.png)
+
+![8 threads](8_io_8.png)
+
+![16 threads](8_io_16.png)
+
+IO does not improve on a machine with more CPU cores, because we are saturating IO and not CPU resources.
+
+### Problem 3
+Screenshots of both programs launched with 2, 4, 8, and 16 threads on a *4 CPU* instance are included below:
+
+![htop with 2 threads](4_cpuio_htop_2.png)
+
+![iostat with 2 threads](4_cpuio_iostat_2.png)
+
+![htop with 4 threads](4_cpuio_htop_4.png)
+
+![iostat with 4 threads](4_cpuio_iostat_4.png)
+
+![htop with 8 threads](4_cpuio_htop_8.png)
+
+![iostat with 8 threads](4_cpuio_iostat_8.png)
+
+![htop with 16 threads](4_cpuio_htop_16.png)
+
+![iostat with 16 threads](4_cpuio_iostat_16.png)
+
+When we launch the program on the larger instance, the results largely match what we have already seen, so these are not included. Some notable differences include:
+
+* CPU saturation occurs later: with each program running with 2 threads, there is not contention for the CPU, and even up to 4 threads each both programs run contentedly.
+* The kernel appears to provide more "fair" scheduling the two competeting resources when 8 threads are used: the IO-heavy job does not entirely crowd out the CPU-heavy job
 
 ### Problem 4
 See `hw2_problem4.py`:
@@ -269,7 +316,7 @@ http://example.com/?url=100: 252
 ### Problem 5
 To install the python package, we required `libmariadb-devel`. Then use `pip` to install the `mysqlclient` package in **python2**:
 ```
-sudo yum install -y mariadb-devel python-devel
+sudo yum install -y mariadb-devel python-devel openssl-devel
 sudo pip install mysqlclient
 ```
 Create a database `shaub` and specify the schema for the `logs` table:
