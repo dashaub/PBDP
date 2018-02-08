@@ -39,4 +39,3 @@ def work_cpu(thread_num):
 for thread_num in range(num_threads):
     job = multiprocessing.Process(target=work_cpu, args=(thread_num, ))
     job.start()
-
