@@ -9,96 +9,51 @@ Completed all problems
 ### Problem 1
 See `hw2_problem1.py`
 ```
-"""
-Launch several threads, each performing a CPU-intensive task
-"""
-import argparse
-from multiprocessing.dummy import Pool as ThreadPool
-import time
-
-parser = argparse.ArgumentParser()
-parser.add_argument('--numThreads', type=int,
-                    help='Number of threads to launch')
-args = parser.parse_args()
-num_threads = args.numThreads
-
-
-def calc_fib(number):
-    """
-    A naive implementation to generate the specified Fibonacci number
-    :param number: The Fibonacci number to generate
-    """
-    current_num = 0
-    next_num = 1
-    for _ in range(number):
-        tmp = current_num
-        current_num = next_num
-        next_num += tmp
-    return current_num
-
-
-def work_cpu(thread_num):
-    """
-    Generate a CPU load. This function will never terminate.
-    :param thread_num: A number to identify this process.
-    """
-    while True:
-        time.sleep(1)
-        print('Launching worker ' + str(thread_num))
-        calc_fib(10**7)
-
-
-workers = [i for i in range(num_threads)]
-pool = ThreadPool(num_threads)
-_ = pool.map(lambda x: work_cpu(thread_num=x), workers)
 ```
+Screenshots of the program launched with 2, 4, 8, and 16 threads on a **4 CPU** instance are included below:
+
+2 Threads
+
+![](4_cpu_2.png)
+
+4 Threads
+
+![](4_cpu_4.png)
+
+8 Threads
+
+![](4_cpu_8.png)
+
+16 Threads
+
+![](4_cpu_16.png)
+
 
 ### Problem 2
-A 500MB dummy `data.dat` file was created with random data, and each thread repeatedly reads from this file to generate IO load:
-```
-openssl rand  $(( 500*2**20 )) > data.dat
 ```
 
-See `hw2_problem2.py`:
 ```
-"""
-Launch several threads, each performing an IO-intensive task
-"""
-import argparse
-from multiprocessing.dummy import Pool as ThreadPool
-import time
+Screenshots of the program launched with 2, 4, 8, and 16 threads on a *4 CPU* instance are included below:
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--numThreads', type=int,
-                    help='Number of threads to launch')
-args = parser.parse_args()
-num_threads = args.numThreads
+2 Threads
 
+![](4_io_2.png)
 
-def load_data():
-    """
-    Load binary data from a data.dat file
-    """
-    source = 'data.dat'
-    with open(source, 'rb') as file_con:
-        _ = file_con.read()
+4 Threads
 
+![](4_io_4.png)
 
-def work_io(thread_num):
-    """
-    Generate IO load. This function will never terminate.
-    :param thread_num: A number to identify this process.
-    """
-    while True:
-        time.sleep(1)
-        print('Launching worker ' + str(thread_num))
-        load_data()
+8 Threads
 
+![](4_io_8.png)
 
-workers = [i for i in range(num_threads)]
-pool = ThreadPool(num_threads)
-_ = pool.map(lambda x: work_io(thread_num=x), workers)
-```
+16 Threads
+
+![](4_io_16.png)
+
+Although this is an IO-heavy task, when the number of threads becomes large, we also start placing a nontrivial load on the CPU. See below the screenshot with 16 threads:
+
+![](4_io_max.png)
 
 ### Problem 3
 
@@ -221,7 +176,7 @@ log_processor = LogProcessor()
 log_processor.process_all()
 log_processor.print_results()
 ```
-The processed data are held inside of a nested python dictionary. The outer dict has keys for each URL. The value for each key is then another dict that has keys for each user and values that are counts for the number of vists that user made to the URL. So the dictionaries look like `{url: {user: count}`, and an example might look like `{'http://www.foo.com/bar': {'alice': 13}}`. To update the shared state, we acquire a lock before we modify the data structure and then remove the lock immediately after we finished the modification: this allows other worker threads to read and parse data in the log file simultaneously while another thread is updating a count, adding a new user, or adding a new URL.
+The processed data are held inside of a nested python dictionary. The outer dict has keys for each URL. The value for each key is then another dict that has keys for each user and values that are counts for the number of vists that user made to the URL. So the dictionaries look like `{url: {user: count}}`, and an example might look like `{'http://www.foo.com/bar': {'alice': 13}}`. To update the shared state, we acquire a lock before we modify the data structure and then remove the lock immediately after we finished the modification: this allows other worker threads to read and parse data in the log file simultaneously while another thread is updating a count, adding a new user, or adding a new URL.
 
 This structure was chosen because it makes answering the queries relatively easy.
 

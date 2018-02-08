@@ -15,12 +15,12 @@ num_threads = args.numThreads
 def write_data(thread_num):
     """
     Write junk data to a data_*.dat file
-    :param thread_num: A suffix that 
+    :param thread_num: A suffix that is added to each file.
     """
     num_lines = 100*2**20
     source = 'data_' + str(thread_num) + '.dat'
     with open(source, 'w') as file_con:
-        for _ in range(num_lines)
+        for _ in range(num_lines):
             file_con.write('foobar')
 
 
