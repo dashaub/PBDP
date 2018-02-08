@@ -45,7 +45,7 @@ class LogProcessor(object):
         uid = hashlib.md5(timestamp + url + user).hexdigest()
         statement = 'insert into logs values ("{}", "{}", "{}", "{}");'.format(uid,timestamp,
                                                                       url, user)
-        print statement
+        #print statement
         self.lock.acquire()
         try:
             self.db.cursor().execute(statement)
@@ -61,6 +61,7 @@ class LogProcessor(object):
         Process a single logfile
         :param filename: The filename of the log to process
         """
+        print 'processing file ' + filename
         with open(filename, 'r') as file_con:
             # Read first line
             line = file_con.readline()
