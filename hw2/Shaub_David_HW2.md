@@ -316,8 +316,8 @@ http://example.com/?url=100: 252
 ### Problem 5
 To install the python package, we required `libmariadb-devel`. Then use `pip` to install the `mysqlclient` package in **python2**:
 ```
-sudo yum install -y mariadb-devel python-devel openssl-devel
-sudo pip install mysqlclient
+sudo yum install -y mariadb-devel python-devel openssl-devel MySQL-python
+sudo pip install mysqlclient ConfigParser
 ```
 Create a database `shaub` and specify the schema for the `logs` table:
 ```
@@ -342,6 +342,12 @@ Now run two instances concurrently of our program--one handling files 1 and 2 in
 ```
 sudo python2 hw2_problem5.py --startingFile 1 & sudo python2 hw2_problem5.py --startingFile 3
 ```
+During the insert, we see decent IO (mainly writes) from several `mysqld` threads and some CPU load:
+
+![CPU load during insert](mariadb_cpu.png)
+
+![IO load during insert](mariadb_io.png)
+
 Now we can query our database (and ignore the `uid` column since the output is too verbose for this document).
 ```
 > > select timestamp, url, user_id from logs limit 10;

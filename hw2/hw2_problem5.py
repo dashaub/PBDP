@@ -32,7 +32,7 @@ class LogProcessor(object):
         # The two filenames to process
         self.files = ['log_file_0' + str(i + starting_file) + '.txt' for i in range(2)]
         # Database connection
-        self.db = MySQLdb.connect(user='root', db='shaub')
+        self.db = MySQLdb.connect(user='root', passwd='passwd', db='shaub')
 
     def insert_data(self, timestamp, url, user):
         """
