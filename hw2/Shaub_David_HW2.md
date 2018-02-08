@@ -183,3 +183,27 @@ This structure was chosen because it makes answering the queries relatively easy
 1.  To get the number of unique urls, we simply need to count the length of the keys of the outer dict.
 2.  To get the number of disctinct visitors to each URL, we count the number of values for each URL.
 3.  To return the number of visits for each URL per user, we enumerate all of the nested values and print a tuple like `(url, user, count)`
+
+
+### Problem 5
+Use `pip` to install the `mysqlclient` package in python2:
+```
+pip install mysqlclient
+```
+Create a database `shaub` and specify the schema for the `logs` table:
+```
+create database shaub;
+use shaub;
+create table logs(
+uid char(32) primary key,
+timestamp timestamp(6),
+url varchar(100),
+user_id varchar(30)
+);
+```
+When our application inserts a record, we will generate a hash of the data to uniqely identify that record.
+
+Now run two instances concurrently of our program--one handlings files 1 and 2 and the other handling files 3 and 4. Note that we run sudo so it can connect to the sever, but in production we would instead designate username/password credentials:
+```
+sudo python hw2_problem5.py --startingFile 1 & sudo python hw2_problem5.py --startingFile 3
+```

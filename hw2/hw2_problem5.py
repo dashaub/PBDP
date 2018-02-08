@@ -2,6 +2,10 @@
 Load 4 logfiles--each with a thread--and answer 3 queries about the data
 """
 import argparse
+import hashlib
+import MySQLdb
+import _mysql_exceptions
+import threading
 from multiprocessing.dummy import Pool as ThreadPool
 
 parser = argparse.ArgumentParser()
@@ -23,8 +27,12 @@ class LogProcessor(object):
         """
         # Always use two threads
         self.num_threads = 2
+        # Lock for the client's transactions
+        self.lock = threading.Lock()
         # The two filenames to process
         self.files = ['log_file_0' + str(i + starting_file) + '.txt' for i in range(2)]
+        # Database connection
+        self.db = MySQLdb.connect(user='root', db='shaub')
 
     def insert_data(self, timestamp, url, user):
         """
@@ -33,6 +41,19 @@ class LogProcessor(object):
         :param url: The URL of the observation
         :param user: The uesr of the observation
         """
+        # Generate a uid for the record
+        uid = hashlib.md5(timestamp + url + user).hexdigest()
+        statement = 'insert into logs values ("{}", "{}", "{}", "{}");'.format(uid,timestamp,
+                                                                      url, user)
+        print statement
+        self.lock.acquire()
+        try:
+            self.db.cursor().execute(statement)
+            self.db.commit()
+        except _mysql_exceptions.IntegrityError:
+            # Duplicate key
+            next
+        self.lock.release()
         pass
 
     def process_log(self, filename):
