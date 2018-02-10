@@ -65,6 +65,16 @@ Resource utilization statistics were collected with `htop -d100` and `sudo iotop
 
 ![16 threads](4_cpu_16.png)
 
+\begin{center}
+CPU utilization on process threads with \textbf{4 cores}:
+\end{center}
+
+|   2  |    4   |    8   |   16   |
+|:----:|:------:|:------:|:------:|
+| 200% | 399.4% | 399.3% | 399.4% |
+
+When 4 threads are launched, we have effectively saturated all CPU resources available on the 4 cores (i.e. 400%), and the load is spread across the 4 physical cores. When we launch 8 or 16 threads, we continue to use all resources, but now each thread is only scheduled for a fractional amount of time (i.e. ~50% per core with 8 threads or ~25% per core with 16 threads) because they are sharing cores.
+
 \newpage
 Screenshots of the program launched with 2, 4, 8, and 16 threads on a **8 CPU** instance are included below:
 
@@ -76,11 +86,19 @@ Screenshots of the program launched with 2, 4, 8, and 16 threads on a **8 CPU** 
 
 ![16 threads](8_cpu_16.png)
 
-Unsurprisingly, the machine with 8 cores research saturation slower than the 4 core machine: when 8 threads are running these does not appear to be resource contention, and even when we rearch 16 threads each process appears to be scheduled half of the time.
+\begin{center}
+CPU utilization on process threads with \textbf{8 cores}:
+\end{center}
+
+|   2  |   4  |    8   |   16   |
+|:----:|:----:|:------:|:------:|
+| 200% | 400% | 799.2% | 802.5% |
+
+Unsurprisingly, the machine with 8 cores reaches saturation slower than the 4 core machine: when 8 threads are running there does not appear to be resource contention, and even when we rearch 16 threads each process appears to be scheduled half of the time.
 
 \newpage
 ### Problem 2
-For an IO-intensive task, each thread generates and writes 1,000,000 random numbers into its own file. After this completes, it loops and continues the process indefinitely, overwriting the same file. Each of these files reaches a size of ~14MB and we write a single number at a time, so this becomes an IO-heavy task. Although the kernel may buffer some of the writes, when many threads are active we very likely also perform more disk seek operations. The instance was launched with conventional storage rather than SSDs to demonstrate this.
+For an IO-intensive task, each thread generates and writes 1,000,000 (`double`) random numbers generated with `random.random()` into its own file. After this completes, it loops and continues the process indefinitely, overwriting the same file. Each of these files reaches a size of ~14MB and we write a single number at a time, so this becomes an IO-heavy task. Although the kernel may buffer some of the writes, when many threads are active we very likely also perform more disk seek operations. The instance was launched with conventional storage rather than SSDs to demonstrate this.
 
 See `hw2_problem2.py`.
 ```
