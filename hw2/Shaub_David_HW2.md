@@ -209,6 +209,23 @@ Screenshots of both programs launched with 2, 4, 8, and 16 threads on a *4 CPU* 
 
 ![iostat with 16 threads](4_cpuio_iostat_16.png)
 
+\begin{center}
+CPU utilization on process threads with \textbf{4 cores}:
+\end{center}
+
+|   2   |   4   |   8   |   16  |
+|:-----:|:-----:|:-----:|:-----:|
+| 284.4 | 366.7 | 495.7 | 445.1 |
+
+\begin{center}
+IO (writes in MB/s) utilization on \textbf{4 cores}:
+\end{center}
+
+|   2  |   4   |   8  |   16  |
+|:----:|:-----:|:----:|:-----:|
+| 16.0 | 31.94 | 49.2 | 68.84 |
+
+
 \newpage
 Screenshots of both programs launched with 2, 4, 8, and 16 threads on a *4 CPU* instance are included below:
 
@@ -229,10 +246,20 @@ Screenshots of both programs launched with 2, 4, 8, and 16 threads on a *4 CPU* 
 ![iostat with 16 threads](8_cpuio_iostat_16.png)
 
 \newpage
+
+\begin{center}
+CPU utilization on process threads with \textbf{8 cores}:
+\end{center}
+
+\begin{center}
+IO (writes in MB/s) utilization on \textbf{8 cores}:
+\end{center}
+
 Some notable differences between the 4 CPU and 8 CPU configuration include:
 
 * CPU saturation occurs later: with each program running with 2 threads, there is not contention for the CPU, and even up to 4 threads each both programs run contentedly.
-* The kernel appears to provide more "fair" scheduling the two competeting resources when 8 threads are used: the IO-heavy job does not entirely crowd out the CPU-heavy job
+* The kernel appears to provide more "fair" scheduling the two competeting resources when 8 threads are used: the IO-heavy job does not entirely crowd out the CPU-heavy job.
+* The 8 CPU system achieves a higher IO rate with more threads, likely because there is less contention for CPU resources compared with the 4 CPU machine.
 
 \newpage
 ### Problem 4
