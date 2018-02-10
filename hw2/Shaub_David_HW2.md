@@ -2,7 +2,7 @@
 title: Homework 2
 author: David Shaub
 geometry: margin=2cm
-date: 2018-02-08
+date: 2018-02-10
 ---
 Completed all problems including problem 5.
 
@@ -155,7 +155,16 @@ Screenshots of the program launched with 2, 4, 8, and 16 threads on a *4 CPU* in
 
 ![16 threads](4_io_16.png)
 
-Although this is an IO-heavy task, when the number of threads becomes large, we also start placing a nontrivial load on the CPU. See below the screenshot with 16 threads:
+\begin{center}
+IO (writes in MB/s) utilization on \textbf{4 cores}:
+\end{center}
+
+|   2   |   4   |   8   |   16  |
+|:-----:|:-----:|:-----:|:-----:|
+| 16.00 | 31.96 | 45.26 | 51.79 |
+
+
+The `man` page for `iotop` is not entirely clear on the units in the display: presumably these would be `Mbit/s` to reflect a data transfer rate, but the `-k` flag applies `Use  kilobytes  instead  of  a human friendly unit`, which suggests the units may actually be `MB/s`. Although in general IO-heavy tasks will not benefit from parallelism on a single HDD, we see slightly increasing rates as the number of threads grows: what is likely happening is that there is still idle disk time during which the CPU is generating new data to write, so another thread can utilize the IO resources then. Additionally, the kernal and disk cache is likely optimizing the writes for larger, continguous writes for each thread instead of writing immediately and thrashing between the threads. Although this is an IO-heavy task, when the number of threads becomes large, we also start placing a nontrivial load on the CPU. See below the screenshot with 16 threads:
 
 ![CPU load with 16 threads](4_io_max.png)
 
@@ -170,7 +179,15 @@ When we repeat this experiment on a **8 CPU** instance, the results do not marke
 
 ![16 threads](8_io_16.png)
 
-IO does not improve on a machine with more CPU cores, because we are saturating IO and not CPU resources.
+\begin{center}
+IO (writes in MB/s) utilization on \textbf{8 cores}:
+\end{center}
+
+|   2   |   4   |   8   |   16  |
+|:-----:|:-----:|:-----:|:-----:|
+| 15.98 | 31.36 | 58.59 | 89.85 |
+
+IO does improve on a machine with more CPU cores somewhat, but the increase is not linear. When we ran with 8 or 16 threads on the 4 CPU machine, the CPU load of each process appears significant enough to place some constraints the the write rate achieved.
 
 \newpage
 ### Problem 3
