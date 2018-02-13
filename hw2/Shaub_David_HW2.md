@@ -2,7 +2,7 @@
 title: Homework 2
 author: David Shaub
 geometry: margin=2cm
-date: 2018-02-08
+date: 2018-02-10
 ---
 Completed all problems including problem 5.
 
@@ -65,6 +65,16 @@ Resource utilization statistics were collected with `htop -d100` and `sudo iotop
 
 ![16 threads](4_cpu_16.png)
 
+\begin{center}
+CPU utilization on process threads with \textbf{4 cores}:
+\end{center}
+
+|   2  |    4   |    8   |   16   |
+|:----:|:------:|:------:|:------:|
+| 200% | 399.4% | 399.3% | 399.4% |
+
+When 4 threads are launched, we have effectively saturated all CPU resources available on the 4 cores (i.e. 400%), and the load is spread across the 4 physical cores. When we launch 8 or 16 threads, we continue to use all resources, but now each thread is only scheduled for a fractional amount of time (i.e. ~50% per core with 8 threads or ~25% per core with 16 threads) because they are sharing cores.
+
 \newpage
 Screenshots of the program launched with 2, 4, 8, and 16 threads on a **8 CPU** instance are included below:
 
@@ -76,11 +86,19 @@ Screenshots of the program launched with 2, 4, 8, and 16 threads on a **8 CPU** 
 
 ![16 threads](8_cpu_16.png)
 
-Unsurprisingly, the machine with 8 cores research saturation slower than the 4 core machine: when 8 threads are running these does not appear to be resource contention, and even when we rearch 16 threads each process appears to be scheduled half of the time.
+\begin{center}
+CPU utilization on process threads with \textbf{8 cores}:
+\end{center}
+
+|   2  |   4  |    8   |   16   |
+|:----:|:----:|:------:|:------:|
+| 200% | 400% | 799.2% | 802.5% |
+
+Unsurprisingly, the machine with 8 cores reaches saturation slower than the 4 core machine: when 8 threads are running there does not appear to be resource contention, and even when we rearch 16 threads each process appears to be scheduled half of the time.
 
 \newpage
 ### Problem 2
-For an IO-intensive task, each thread generates and writes 1,000,000 random numbers into its own file. After this completes, it loops and continues the process indefinitely, overwriting the same file. Each of these files reaches a size of ~14MB and we write a single number at a time, so this becomes an IO-heavy task. Although the kernel may buffer some of the writes, when many threads are active we very likely also perform more disk seek operations. The instance was launched with conventional storage rather than SSDs to demonstrate this.
+For an IO-intensive task, each thread generates and writes 1,000,000 (`double`) random numbers generated with `random.random()` into its own file. After this completes, it loops and continues the process indefinitely, overwriting the same file. Each of these files reaches a size of ~14MB and we write a single number at a time, so this becomes an IO-heavy task. Although the kernel may buffer some of the writes, when many threads are active we very likely also perform more disk seek operations. The instance was launched with conventional storage rather than SSDs to demonstrate this.
 
 See `hw2_problem2.py`.
 ```
@@ -127,7 +145,7 @@ for thread_num in range(num_threads):
 
 ```
 \newpage
-Screenshots of the program launched with 2, 4, 8, and 16 threads on a *4 CPU* instance are included below:
+Screenshots of the program launched with 2, 4, 8, and 16 threads on a **4 CPU** instance are included below:
 
 ![2 threads](4_io_2.png)
 
@@ -137,7 +155,16 @@ Screenshots of the program launched with 2, 4, 8, and 16 threads on a *4 CPU* in
 
 ![16 threads](4_io_16.png)
 
-Although this is an IO-heavy task, when the number of threads becomes large, we also start placing a nontrivial load on the CPU. See below the screenshot with 16 threads:
+\begin{center}
+IO (writes in MB/s) utilization on \textbf{4 cores}:
+\end{center}
+
+|   2   |   4   |   8   |   16  |
+|:-----:|:-----:|:-----:|:-----:|
+| 16.00 | 31.96 | 45.26 | 51.79 |
+
+
+The `man` page for `iotop` is not entirely clear on the units in the display: presumably these would be `Mbit/s` to reflect a data transfer rate, but the `-k` flag applies `Use  kilobytes  instead  of  a human friendly unit`, which suggests the units may actually be `MB/s`. Although in general IO-heavy tasks will not benefit from parallelism on a single HDD, we see slightly increasing rates as the number of threads grows: what is likely happening is that there is still idle disk time during which the CPU is generating new data to write, so another thread can utilize the IO resources then. Moreover, there is the 1 second sleep time for each thread after it completes the write before it begins the next write. Additionally, the kernal and disk cache is likely optimizing the writes for larger, continguous writes for each thread instead of writing immediately and thrashing between the threads. Although this is an IO-heavy task, when the number of threads becomes large, we also start placing a nontrivial load on the CPU. See the screenshot or CPU load with 16 threads.
 
 ![CPU load with 16 threads](4_io_max.png)
 
@@ -152,11 +179,19 @@ When we repeat this experiment on a **8 CPU** instance, the results do not marke
 
 ![16 threads](8_io_16.png)
 
-IO does not improve on a machine with more CPU cores, because we are saturating IO and not CPU resources.
+\begin{center}
+IO (writes in MB/s) utilization on \textbf{8 cores}:
+\end{center}
+
+|   2   |   4   |   8   |   16  |
+|:-----:|:-----:|:-----:|:-----:|
+| 15.98 | 31.36 | 58.59 | 89.85 |
+
+IO does improve on a machine with more CPU cores somewhat, but the increase is not linear (and it is believable that these measurements are noisy and volatile). When we ran with 8 or 16 threads on the 4 CPU machine, the CPU load of each process appears significant enough to place some constraints the the write rate achieved.
 
 \newpage
 ### Problem 3
-Screenshots of both programs launched with 2, 4, 8, and 16 threads on a *4 CPU* instance are included below:
+Screenshots of both programs launched with 2, 4, 8, and 16 threads on a **4 CPU** instance are included below:
 
 ![htop with 2 threads](4_cpuio_htop_2.png)
 
@@ -174,8 +209,25 @@ Screenshots of both programs launched with 2, 4, 8, and 16 threads on a *4 CPU* 
 
 ![iostat with 16 threads](4_cpuio_iostat_16.png)
 
+\begin{center}
+CPU utilization on process threads with \textbf{4 cores}:
+\end{center}
+
+|    2   |    4   |    8   |   16   |
+|:------:|:------:|:------:|:------:|
+| 284.4% | 366.7% | 495.7% | 445.1% |
+
+\begin{center}
+IO (writes in MB/s) utilization on \textbf{4 cores}:
+\end{center}
+
+|   2  |   4   |   8  |   16  |
+|:----:|:-----:|:----:|:-----:|
+| 16.0 | 31.94 | 49.2 | 68.84 |
+
+
 \newpage
-Screenshots of both programs launched with 2, 4, 8, and 16 threads on a *4 CPU* instance are included below:
+Screenshots of both programs launched with 2, 4, 8, and 16 threads on a **8 CPU** instance are included below:
 
 ![htop with 2 threads](8_cpuio_htop_2.png)
 
@@ -194,10 +246,28 @@ Screenshots of both programs launched with 2, 4, 8, and 16 threads on a *4 CPU* 
 ![iostat with 16 threads](8_cpuio_iostat_16.png)
 
 \newpage
+
+\begin{center}
+CPU utilization on process threads with \textbf{8 cores}:
+\end{center}
+
+|    2   |    4   |   8  |   16   |
+|:------:|:------:|:----:|:------:|
+| 274.9% | 557.6% | 799% | 784.7% |
+
+\begin{center}
+IO (writes in MB/s) utilization on \textbf{8 cores}:
+\end{center}
+
+|   2   |   4   |   8   |   16  |
+|:-----:|:-----:|:-----:|:-----:|
+| 15.98 | 27.96 | 37.89 | 54.55 |
+
 Some notable differences between the 4 CPU and 8 CPU configuration include:
 
 * CPU saturation occurs later: with each program running with 2 threads, there is not contention for the CPU, and even up to 4 threads each both programs run contentedly.
-* The kernel appears to provide more "fair" scheduling the two competeting resources when 8 threads are used: the IO-heavy job does not entirely crowd out the CPU-heavy job
+* The kernel appears to provide more "fair" scheduling the two competeting resources when 8 threads are used: the IO-heavy job does not entirely crowd out the CPU-heavy job. By modifying the `niceness` for each process, we could adjust this.
+* Somewhat surprisingly, the IO rate does not increase on the system with 8 cores (despite our observing this in **Problem 2**). This could be because the CPU-heavy task is getting scheduled more, so it crowds out the IO processes. Alternatively, this could be due to simple volatility and measurement error.
 
 \newpage
 ### Problem 4
@@ -325,7 +395,7 @@ The processed data are held inside of a nested python dictionary. The outer dict
 
 This structure was chosen because it makes answering the queries easy:
 
-1.  To get the number of unique urls, we simply count the length of the keys of the outer dict.
+1.  To get the number of unique urls, we simply count the number of the keys of the outer dict.
 2.  To get the number of disctinct visitors to each URL, we count the number of values for each URL.
 3.  To return the number of visits for each URL per user, sum all of the values of each URL's subdictionary.
 
@@ -658,7 +728,7 @@ user_id varchar(30)
 Query OK, 0 rows affected (0.01 sec)
 
 ```
-When our application inserts a record, we will generate a hash of the data to uniqely identify that record. This will prevent duplicate records from being inserted.
+When our application inserts a record, we will generate a hash of the data to uniqely identify that record in the `uid` field. This will prevent duplicate records from being inserted.
 
 Now run two instances concurrently of our program--one handling files 1 and 2 in two threads and the other handling files 3 and 4 in two threads. Note that we run with `sudo` so it can connect to the MariaDB sever, but in production we would instead designate username/password credentials to avoid granting excess privileges to the process:
 ```
