@@ -2,15 +2,12 @@
 
 import sys
 
-current_user = None
-count = 0
 
 for line in sys.stdin:
     current_line = line.strip().split('\t')
     if len(current_line) == 2:
+        url = current_line[0]
         user = current_line[1]
-        if user != current_user:
-            count += 1
-            current_user = user
+        results.add(user)
 
-print(count)
+print("{}\t{}".format(url, len(results)))
