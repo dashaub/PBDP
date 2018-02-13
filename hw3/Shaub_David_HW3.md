@@ -1,39 +1,36 @@
 
 
 ## Problem 3
-We can validate the map reduce job by comparing with the results of a shell 
+
+**Q1**
+We run our map-reduce program on a single node:
 ```
-$ cat logs_*.txt | gawk '{print $2}' | sort | uniq -c
-18750 http://example.com/?url=0
-18750 http://example.com/?url=1
-18750 http://example.com/?url=10
-18750 http://example.com/?url=11
-18750 http://example.com/?url=12
-18750 http://example.com/?url=2
-18750 http://example.com/?url=3
-18750 http://example.com/?url=4
-18750 http://example.com/?url=5
-18750 http://example.com/?url=6
-18750 http://example.com/?url=7
-18750 http://example.com/?url=8
-18750 http://example.com/?url=9
+$ cat logs_*.txt | ./p3_q1_mapper.py | sort | ./p3_q1_reducer.py
+13
+
+```
+We can also validate that this is the correct result by comparing a shell one-liner:
+```
+$ cat logs_*.txt | gawk '{print $2}' | sort | uniq | wc -l
+13
+
 ```
 
 ```
-$ cat logs_*.txt | gawk '{print $2, $3}' | sort | gawk '{print $1}' | sort | uniq -c
-18750 http://example.com/?url=0
-18750 http://example.com/?url=1
-18750 http://example.com/?url=10
-18750 http://example.com/?url=11
-18750 http://example.com/?url=12
-18750 http://example.com/?url=2
-18750 http://example.com/?url=3
-18750 http://example.com/?url=4
-18750 http://example.com/?url=5
-18750 http://example.com/?url=6
-18750 http://example.com/?url=7
-18750 http://example.com/?url=8
-18750 http://example.com/?url=9
+$ cat logs_*.txt | gawk '{print $2, $3}' | sort | uniq | gawk '{print $1}' | sort | uniq -c
+   5 http://example.com/?url=0
+   5 http://example.com/?url=1
+   5 http://example.com/?url=10
+   5 http://example.com/?url=11
+   5 http://example.com/?url=12
+   5 http://example.com/?url=2
+   5 http://example.com/?url=3
+   5 http://example.com/?url=4
+   5 http://example.com/?url=5
+   5 http://example.com/?url=6
+   5 http://example.com/?url=7
+   5 http://example.com/?url=8
+   5 http://example.com/?url=9
 ```
 
 ```

@@ -1,6 +1,5 @@
 """
-
-
+Get the number of unique URL
 """
 
 def parse_log_line_w3(line):
