@@ -8,4 +8,4 @@ for line in sys.stdin:
         url = current_line[1]
         user = current_line[2]
         # Build key-value pairs with the URL-user
-        print("{}\t{}".format(url, user))
+        print("{}:{}\t{}".format(url, user, 1))
