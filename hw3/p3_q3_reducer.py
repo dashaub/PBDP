@@ -13,7 +13,7 @@ for line in sys.stdin:
     else:
         # Only emit results if there is data
         if count > 0:
-            print("{}\t{}".format(user_url, count))
+            print("{}\t{}".format(current_user_url, count))
         current_user_url = user_url
         count = 1
 
