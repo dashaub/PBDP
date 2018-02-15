@@ -25,4 +25,4 @@ for line in sys.stdin:
         continue
 
 if count > 0:
-    print("{}\t{}".format(url, count))
+    print("{}\t{}".format(current_url, count))

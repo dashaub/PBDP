@@ -15,6 +15,5 @@ for line in sys.stdin:
         timestamp = current_line[0]
         hour = extract_hour(timestamp)
         url = current_line[1]
-        url_hour = url + ' : ' + hour
-        # Key is the url-hour-timestamp, value is count 1
-        print("{}\t1".format(url_hour))
+        # Key is the hour, value is url
+        print("{}\t{}".format(hour, url))

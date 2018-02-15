@@ -2,15 +2,28 @@
 
 import sys
 
-current_user = None
+
+current_hour = None
+current_url = None
 count = 0
 
 for line in sys.stdin:
-    current_line = line.strip().split('\t')
-    if len(current_line) == 2:
-        user = current_line[1]
-        if user != current_user:
-            count += 1
-            current_user = user
+    try:
+        hour, url = line.strip().split('\t')
+        # If same hour, we might increment count
+        if hour == current_hour:
+            # Only increment if this is a new url
+            if url != current_url:
+                count += 1
+        else:
+            # Only emit results if there is data
+            if count > 0:
+                print("{}\t{}".format(current_hour, count))
+            count = 1
+        current_url = url
+        current_hour = hour
+    except ValueError:
+        continue
 
-print(count)
+if count > 0:
+    print("{}\t{}".format(current_hour, count))
