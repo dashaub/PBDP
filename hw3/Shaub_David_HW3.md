@@ -191,3 +191,15 @@ $ cat logs_*.txt | gawk '{print $2, $3}' | sort | uniq -c
 3750 http://example.com/?url=9 User_3
 3750 http://example.com/?url=9 User_4
 ```
+
+### Problem 5
+
+We run two chained map reduce jobs on a single node:
+```
+$ cat logs_*.txt | ./p5_s1_mapper.py | sort | ./p5_s1_reducer.py | ./p5_s2_mapper.py | sort | ./p5_s2_reducer.py 
+http://example.com/?url=10	18750
+http://example.com/?url=11	18750
+http://example.com/?url=12	18750
+http://example.com/?url=0	18750
+http://example.com/?url=1	18750
+``
