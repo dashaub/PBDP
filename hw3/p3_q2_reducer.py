@@ -4,10 +4,11 @@ import sys
 
 current_user = None
 current_url = None
-count = 1
+count = 0
+
 for line in sys.stdin:
-    url, user = current_line = line.strip().split('\t')
-    if current_url:
+    try:
+        url, user = line.strip().split('\t')
         # If same URL, we might increment count
         if url == current_url:
             # Only increment if this is a new user
@@ -16,10 +17,12 @@ for line in sys.stdin:
         else:
             # Only emit results if there is data
             if count > 0:
-                print("{}\t{}".format(url, count))
+                print("{}\t{}".format(current_url, count))
             count = 1
-    current_user = user
-    current_url = url
+        current_user = user
+        current_url = url
+    except ValueError:
+        continue
 
 if count > 0:
     print("{}\t{}".format(url, count))
