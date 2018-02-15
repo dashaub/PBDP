@@ -2,20 +2,20 @@
 
 import sys
 
-current_user_url = None
+current_url_user_hour = None
 count = 0
 
 for line in sys.stdin:
-    user_url, value = line.strip().split('\t')
+    url_user_hour, value = line.strip().split('\t')
     # If same URL-user, we might increment count
-    if user_url == current_user_url:
+    if url_user_hour == current_url_user_hour:
         count += int(value)
     else:
         # Only emit results if there is data
         if count > 0:
-            print("{}\t{}".format(current_user_url, count))
-        current_user_url = user_url
+            print("{}\t{}".format(current_url_user_hour, count))
+        current_url_user_hour = url_user_hour
         count = 1
 
 if count > 0:
-    print("{}\t{}".format(user_url, count))
+    print("{}\t{}".format(url_user_hour, count))
