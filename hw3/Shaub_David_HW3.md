@@ -7,6 +7,49 @@ date: 2018-02-16
 
 ## Problem 1
 
+Our cluster has one master node and two slave nodes:
+![cluster](cluster.png)
+
+We connect to the master node:
+```
+$ ssh -i ~/ohio.pem hadoop@ec2-18-221-60-255.us-east-2.compute.amazonaws.com
+The authenticity of host 'ec2-18-221-60-255.us-east-2.compute.amazonaws.com (18.221.60.255)' can't be established.
+ECDSA key fingerprint is SHA256:753xHLDs0hHFD/hr6b3y0a9yyCDzULJHXKSYUvJQm/Y.
+Are you sure you want to continue connecting (yes/no)? yes
+Warning: Permanently added 'ec2-18-221-60-255.us-east-2.compute.amazonaws.com,18.221.60.255' (ECDSA) to the list of known hosts.
+
+       __|  __|_  )
+       _|  (     /   Amazon Linux AMI
+      ___|\___|___|
+
+https://aws.amazon.com/amazon-linux-ami/2017.09-release-notes/
+11 package(s) needed for security, out of 13 available
+Run "sudo yum update" to apply all updates.
+                                                                    
+EEEEEEEEEEEEEEEEEEEE MMMMMMMM           MMMMMMMM RRRRRRRRRRRRRRR    
+E::::::::::::::::::E M:::::::M         M:::::::M R::::::::::::::R   
+EE:::::EEEEEEEEE:::E M::::::::M       M::::::::M R:::::RRRRRR:::::R 
+  E::::E       EEEEE M:::::::::M     M:::::::::M RR::::R      R::::R
+  E::::E             M::::::M:::M   M:::M::::::M   R:::R      R::::R
+  E:::::EEEEEEEEEE   M:::::M M:::M M:::M M:::::M   R:::RRRRRR:::::R 
+  E::::::::::::::E   M:::::M  M:::M:::M  M:::::M   R:::::::::::RR   
+  E:::::EEEEEEEEEE   M:::::M   M:::::M   M:::::M   R:::RRRRRR::::R  
+  E::::E             M:::::M    M:::M    M:::::M   R:::R      R::::R
+  E::::E       EEEEE M:::::M     MMM     M:::::M   R:::R      R::::R
+EE:::::EEEEEEEE::::E M:::::M             M:::::M   R:::R      R::::R
+E::::::::::::::::::E M:::::M             M:::::M RR::::R      R::::R
+EEEEEEEEEEEEEEEEEEEE MMMMMMM             MMMMMMM RRRRRRR      RRRRRR
+```
+
+Using the `hdfs version` command we can see which version we have:
+
+![hdfs version](hdfs_version.png)
+
+We perform some manipulations on hdfs (i.e. creating a directory, copying our data files, verifying our files have been copied):
+```
+
+```
+
 ## Problem 2
 
 ## Problem 3
