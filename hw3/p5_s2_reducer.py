@@ -15,6 +15,7 @@ def add_to_dict(current_dict, url, count):
 
     current_min = min(current_dict.values())
     # Add to the dict only if the new count is greater than the current min
+    # We could modify this rule to >= if we wished different tie-breaking rules for replacements
     if count > current_min:
         # Remove one instance of the current min and add new key/value to the dict
         for k, v in current_dict.iteritems():
@@ -33,7 +34,7 @@ for line in sys.stdin:
     except ValueError:
         continue
 
-# This won't print the items in the order of count. If we did care about this, we should sort
+# This won't print the items in the order of decreasing count. If we did care about this, we should sort
 # before printing
 for k, v in count_dict.iteritems():
     print("{}\t{}".format(k, v))

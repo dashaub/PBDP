@@ -7,5 +7,5 @@ for line in sys.stdin:
     if current_line is not None:
         url = current_line[1]
         user = current_line[2]
-        # Build key-value pairs with the URL-user
+        # Build key of url and value of user
         print("{}\t{}".format(url, user))

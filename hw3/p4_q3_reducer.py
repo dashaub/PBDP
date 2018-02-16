@@ -7,7 +7,7 @@ count = 0
 
 for line in sys.stdin:
     url_user_hour, value = line.strip().split('\t')
-    # If same URL-user, we might increment count
+    # If same URL/user/hour, increment the count
     if url_user_hour == current_url_user_hour:
         count += int(value)
     else:

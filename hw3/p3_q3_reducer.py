@@ -7,7 +7,7 @@ count = 0
 
 for line in sys.stdin:
     user_url, value = line.strip().split('\t')
-    # If same URL-user, we might increment count
+    # If same URL/user, we might increment count
     if user_url == current_user_url:
         count += int(value)
     else:
