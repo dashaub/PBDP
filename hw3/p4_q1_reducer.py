@@ -4,26 +4,24 @@ import sys
 
 
 current_hour = None
-current_url = None
-count = 0
+# For our data we do not have that many URLs for each hour. If the cardinality of this was very large,
+# this set would not be safe for memory. The solution is to once again use a two stage MR job.
+url_set = set()
 
 for line in sys.stdin:
     try:
         hour, url = line.strip().split('\t')
         # If same hour, we might increment count
         if hour == current_hour:
-            # Only increment if this is a new url
-            if url != current_url:
-                count += 1
+            url_set.add(url)
         else:
             # Only emit results if there is data
-            if count > 0:
-                print("{}\t{}".format(current_hour, count))
-            count = 1
-        current_url = url
+            if len(url_set) > 0:
+                print("{}\t{}".format(current_hour, len(url_set)))
+            url_set = set()
         current_hour = hour
     except ValueError:
         continue
 
-if count > 0:
-    print("{}\t{}".format(current_hour, count))
+if len(url_set) > 0:
+    print("{}\t{}".format(current_hour, len(url_set)))

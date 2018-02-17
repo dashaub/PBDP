@@ -1587,4 +1587,4 @@ http://example.com/?url=1	18750
 http://example.com/?url=2	18750
 http://example.com/?url=9	18750
 ```
-The exact URLs returned do not match the results from our single node, but since all of the URLs are tied and our implementation does not implement a stable sort algorithm, this is not surprising.
+The exact URLs returned do not match the results from our single node, but since all of the URLs are tied and our implementation does not implement a stable sort algorithm, this is not unexpected nor does it prove the run is incorrect.
