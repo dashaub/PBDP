@@ -5,6 +5,8 @@ geometry: margin=2cm
 date: 2018-02-16
 ---
 
+All problems were completed, including problem 5.
+
 ## Problem 1
 
 Our cluster has one master node and two slave nodes:
@@ -164,7 +166,9 @@ for line in sys.stdin:
         # Send all URLs to the same reducer. Since our data is not too large, we can get away
         # with this. If we really had "Big Data" and wished to reduce the load better, we should
         # utilize a combiner here so far fewer duplicate rows of input must be processed by the reducer.
+        # Or we could implement a two-stage MR job as mentioned in the reducer comments.
         print("1\t{}".format(url))
+
 ```
 
 The reducer is `p3_q1_reducer.py`:
@@ -176,16 +180,22 @@ import sys
 current_user = None
 count = 0
 
+# For our data we do not have that many distinct users. If the cardinality of this was very large,
+# this set would not be safe for memory. The solution is to use a two stage MR job.
+all_users = set()
+
 for line in sys.stdin:
     current_line = line.strip().split('\t')
     if len(current_line) == 2:
         user = current_line[1]
-        # We'll increment the counter when a new user is encountered
-        if user != current_user:
-            count += 1
-            current_user = user
+        # If we have very high cardinality for number of users, this implementation is not memory safe.
+        # For our dataset this is not a problem, but if it were we could do a two-stage MR job
+        # Where the first job is a "word count" type job and the second stage then returns
+        # a count for the total number of records.
+        all_users.add(user)
 
-print(count)
+print(len(all_users))
+
 ```
 
 We run our map-reduce program on a single node:
@@ -204,38 +214,39 @@ $ cat logs_*.txt | gawk '{print $2}' | sort | uniq | wc -l
 We launch the Hadoop job:
 ```
 $ hadoop jar /usr/lib/hadoop-mapreduce/hadoop-streaming.jar -mapper p3_q1_mapper.py -reducer p3_q1_reducer.py -file p3_q1_mapper.py -file p3_q1_reducer.py -input hdfs:///user/hadoop/input/ -output hdfs:///usr/hadoop/p3_q1
-18/02/16 06:38:52 WARN streaming.StreamJob: -file option is deprecated, please use generic option -files instead.
-packageJobJar: [p3_q1_mapper.py, p3_q1_reducer.py] [/usr/lib/hadoop/hadoop-streaming-2.7.3-amzn-6.jar] /tmp/streamjob3099097508193776874.jar tmpDir=null
-18/02/16 06:38:54 INFO impl.TimelineClientImpl: Timeline service address: http://ip-172-31-6-65.us-east-2.compute.internal:8188/ws/v1/timeline/
-18/02/16 06:38:54 INFO client.RMProxy: Connecting to ResourceManager at ip-172-31-6-65.us-east-2.compute.internal/172.31.6.65:8032
-18/02/16 06:38:55 INFO impl.TimelineClientImpl: Timeline service address: http://ip-172-31-6-65.us-east-2.compute.internal:8188/ws/v1/timeline/
-18/02/16 06:38:55 INFO client.RMProxy: Connecting to ResourceManager at ip-172-31-6-65.us-east-2.compute.internal/172.31.6.65:8032
-18/02/16 06:38:55 INFO lzo.GPLNativeCodeLoader: Loaded native gpl library
-18/02/16 06:38:55 INFO lzo.LzoCodec: Successfully loaded & initialized native-lzo library [hadoop-lzo rev fc548a0642e795113789414490c9e59e6a8b91e4]
-18/02/16 06:38:55 INFO mapred.FileInputFormat: Total input paths to process : 4
-18/02/16 06:38:55 INFO mapreduce.JobSubmitter: number of splits:8
-18/02/16 06:38:56 INFO mapreduce.JobSubmitter: Submitting tokens for job: job_1518759988148_0002
-18/02/16 06:38:56 INFO impl.YarnClientImpl: Submitted application application_1518759988148_0002
-18/02/16 06:38:56 INFO mapreduce.Job: The url to track the job: http://ip-172-31-6-65.us-east-2.compute.internal:20888/proxy/application_1518759988148_0002/
-18/02/16 06:38:56 INFO mapreduce.Job: Running job: job_1518759988148_0002
-18/02/16 06:39:03 INFO mapreduce.Job: Job job_1518759988148_0002 running in uber mode : false
-18/02/16 06:39:03 INFO mapreduce.Job:  map 0% reduce 0%
-18/02/16 06:39:12 INFO mapreduce.Job:  map 13% reduce 0%
-18/02/16 06:39:13 INFO mapreduce.Job:  map 25% reduce 0%
-18/02/16 06:39:19 INFO mapreduce.Job:  map 75% reduce 0%
-18/02/16 06:39:20 INFO mapreduce.Job:  map 100% reduce 0%
-18/02/16 06:39:25 INFO mapreduce.Job:  map 100% reduce 33%
-18/02/16 06:39:26 INFO mapreduce.Job:  map 100% reduce 100%
-18/02/16 06:39:27 INFO mapreduce.Job: Job job_1518759988148_0002 completed successfully
-18/02/16 06:39:27 INFO mapreduce.Job: Counters: 50
+18/02/17 02:03:24 WARN streaming.StreamJob: -file option is deprecated, please use generic option -files instead.
+packageJobJar: [p3_q1_mapper.py, p3_q1_reducer.py] [/usr/lib/hadoop/hadoop-streaming-2.7.3-amzn-6.jar] /tmp/streamjob4146106047656784771.jar tmpDir=null
+18/02/17 02:03:26 INFO impl.TimelineClientImpl: Timeline service address: http://ip-172-31-13-128.us-east-2.compute.internal:8188/ws/v1/timeline/
+18/02/17 02:03:26 INFO client.RMProxy: Connecting to ResourceManager at ip-172-31-13-128.us-east-2.compute.internal/172.31.13.128:8032
+18/02/17 02:03:26 INFO impl.TimelineClientImpl: Timeline service address: http://ip-172-31-13-128.us-east-2.compute.internal:8188/ws/v1/timeline/
+18/02/17 02:03:26 INFO client.RMProxy: Connecting to ResourceManager at ip-172-31-13-128.us-east-2.compute.internal/172.31.13.128:8032
+18/02/17 02:03:27 INFO lzo.GPLNativeCodeLoader: Loaded native gpl library
+18/02/17 02:03:27 INFO lzo.LzoCodec: Successfully loaded & initialized native-lzo library [hadoop-lzo rev fc548a0642e795113789414490c9e59e6a8b91e4]
+18/02/17 02:03:27 INFO mapred.FileInputFormat: Total input paths to process : 4
+18/02/17 02:03:28 INFO mapreduce.JobSubmitter: number of splits:8
+18/02/17 02:03:28 INFO mapreduce.JobSubmitter: Submitting tokens for job: job_1518832184941_0002
+18/02/17 02:03:29 INFO impl.YarnClientImpl: Submitted application application_1518832184941_0002
+18/02/17 02:03:30 INFO mapreduce.Job: The url to track the job: http://ip-172-31-13-128.us-east-2.compute.internal:20888/proxy/application_1518832184941_0002/
+18/02/17 02:03:30 INFO mapreduce.Job: Running job: job_1518832184941_0002
+18/02/17 02:03:39 INFO mapreduce.Job: Job job_1518832184941_0002 running in uber mode : false
+18/02/17 02:03:39 INFO mapreduce.Job:  map 0% reduce 0%
+18/02/17 02:03:48 INFO mapreduce.Job:  map 25% reduce 0%
+18/02/17 02:03:55 INFO mapreduce.Job:  map 38% reduce 0%
+18/02/17 02:03:56 INFO mapreduce.Job:  map 75% reduce 0%
+18/02/17 02:03:57 INFO mapreduce.Job:  map 100% reduce 0%
+18/02/17 02:04:01 INFO mapreduce.Job:  map 100% reduce 33%
+18/02/17 02:04:04 INFO mapreduce.Job:  map 100% reduce 67%
+18/02/17 02:04:05 INFO mapreduce.Job:  map 100% reduce 100%
+18/02/17 02:04:05 INFO mapreduce.Job: Job job_1518832184941_0002 completed successfully
+18/02/17 02:04:05 INFO mapreduce.Job: Counters: 50
 	File System Counters
 		FILE: Number of bytes read=354667
-		FILE: Number of bytes written=2147458
+		FILE: Number of bytes written=2147876
 		FILE: Number of read operations=0
 		FILE: Number of large read operations=0
 		FILE: Number of write operations=0
-		HDFS: Number of bytes read=14078338
-		HDFS: Number of bytes written=5
+		HDFS: Number of bytes read=14078354
+		HDFS: Number of bytes written=4
 		HDFS: Number of read operations=33
 		HDFS: Number of large read operations=0
 		HDFS: Number of write operations=6
@@ -244,20 +255,20 @@ packageJobJar: [p3_q1_mapper.py, p3_q1_reducer.py] [/usr/lib/hadoop/hadoop-strea
 		Launched map tasks=8
 		Launched reduce tasks=3
 		Data-local map tasks=8
-		Total time spent by all maps in occupied slots (ms)=4038192
-		Total time spent by all reduces in occupied slots (ms)=1589376
-		Total time spent by all map tasks (ms)=84129
-		Total time spent by all reduce tasks (ms)=16556
-		Total vcore-milliseconds taken by all map tasks=84129
-		Total vcore-milliseconds taken by all reduce tasks=16556
-		Total megabyte-milliseconds taken by all map tasks=129222144
-		Total megabyte-milliseconds taken by all reduce tasks=50860032
+		Total time spent by all maps in occupied slots (ms)=4246224
+		Total time spent by all reduces in occupied slots (ms)=1821024
+		Total time spent by all map tasks (ms)=88463
+		Total time spent by all reduce tasks (ms)=18969
+		Total vcore-milliseconds taken by all map tasks=88463
+		Total vcore-milliseconds taken by all reduce tasks=18969
+		Total megabyte-milliseconds taken by all map tasks=135879168
+		Total megabyte-milliseconds taken by all reduce tasks=58272768
 	Map-Reduce Framework
 		Map input records=243750
 		Map output records=243750
 		Map output bytes=6881250
 		Map output materialized bytes=355070
-		Input split bytes=1072
+		Input split bytes=1088
 		Combine input records=0
 		Combine output records=0
 		Reduce input groups=1
@@ -268,11 +279,11 @@ packageJobJar: [p3_q1_mapper.py, p3_q1_reducer.py] [/usr/lib/hadoop/hadoop-strea
 		Shuffled Maps =24
 		Failed Shuffles=0
 		Merged Map outputs=24
-		GC time elapsed (ms)=1981
-		CPU time spent (ms)=12780
-		Physical memory (bytes) snapshot=3892400128
-		Virtual memory (bytes) snapshot=40065138688
-		Total committed heap usage (bytes)=3612344320
+		GC time elapsed (ms)=2100
+		CPU time spent (ms)=13100
+		Physical memory (bytes) snapshot=3905753088
+		Virtual memory (bytes) snapshot=40065871872
+		Total committed heap usage (bytes)=3618635776
 	Shuffle Errors
 		BAD_ID=0
 		CONNECTION=0
@@ -283,8 +294,8 @@ packageJobJar: [p3_q1_mapper.py, p3_q1_reducer.py] [/usr/lib/hadoop/hadoop-strea
 	File Input Format Counters 
 		Bytes Read=14077266
 	File Output Format Counters 
-		Bytes Written=5
-18/02/16 06:39:27 INFO streaming.StreamJob: Output directory: hdfs:///usr/hadoop/p3_q1
+		Bytes Written=4
+18/02/17 02:04:05 INFO streaming.StreamJob: Output directory: hdfs:///usr/hadoop/p3_q1
 ```
 This job executed with **8** splits and **8** mappers and **3** reducers.
 
@@ -292,15 +303,13 @@ Examining the output:
 ```
 $ hadoop fs -ls hdfs:///usr/hadoop/p3_q1
 Found 4 items
--rw-r--r--   1 hadoop hadoop          0 2018-02-16 06:39 hdfs:///usr/hadoop/p3_q1/_SUCCESS
--rw-r--r--   1 hadoop hadoop          0 2018-02-16 06:39 hdfs:///usr/hadoop/p3_q1/part-00000
--rw-r--r--   1 hadoop hadoop          0 2018-02-16 06:39 hdfs:///usr/hadoop/p3_q1/part-00001
--rw-r--r--   1 hadoop hadoop          5 2018-02-16 06:39 hdfs:///usr/hadoop/p3_q1/part-00002
+-rw-r--r--   1 hadoop hadoop          0 2018-02-17 02:04 hdfs:///usr/hadoop/p3_q1/_SUCCESS
+-rw-r--r--   1 hadoop hadoop          0 2018-02-17 02:04 hdfs:///usr/hadoop/p3_q1/part-00000
+-rw-r--r--   1 hadoop hadoop          0 2018-02-17 02:03 hdfs:///usr/hadoop/p3_q1/part-00001
+-rw-r--r--   1 hadoop hadoop          4 2018-02-17 02:04 hdfs:///usr/hadoop/p3_q1/part-00002
 $ hadoop fs -cat hdfs:///usr/hadoop/p3_q1/*
-263	
+13	
 ```
-
-Note that the result is not correct and does not match the correct result from our singe-node run.
 
 **Q2**
 
@@ -325,30 +334,29 @@ The reducer is `p3_q2_reducer.py`:
 
 import sys
 
-current_user = None
 current_url = None
 count = 0
+# For our data we do not have that many users for each URL. If the cardinality of this was very large,
+# this set would not be safe for memory. The solution is to once again use a two stage MR job.
+distinct_users = set()
 
 for line in sys.stdin:
     try:
         url, user = line.strip().split('\t')
         # If same URL, we might increment count
         if url == current_url:
-            # Only increment if this is a new user
-            if user != current_user:
-                count += 1
+            distinct_users.add(user)
         else:
             # Only emit results if there is data
-            if count > 0:
-                print("{}\t{}".format(current_url, count))
-            count = 1
-        current_user = user
+            if len(distinct_users) > 0:
+                print("{}\t{}".format(current_url, len(distinct_users)))
+            distinct_users = set()
         current_url = url
     except ValueError:
         continue
 
-if count > 0:
-    print("{}\t{}".format(current_url, count))
+if len(distinct_users) > 0:
+    print("{}\t{}".format(current_url, len(distinct_users)))
 ```
 
 We run our map-reduce program on a single node:
@@ -389,37 +397,37 @@ $ cat logs_*.txt | gawk '{print $2, $3}' | sort | uniq | gawk '{print $1}' | sor
 We launch the Hadoop job:
 ```
 $ hadoop jar /usr/lib/hadoop-mapreduce/hadoop-streaming.jar -mapper p3_q2_mapper.py -reducer p3_q2_reducer.py -file p3_q2_mapper.py -file p3_q2_reducer.py -input hdfs:///user/hadoop/input/ -output hdfs:///usr/hadoop/p3_q2
-18/02/16 06:43:32 WARN streaming.StreamJob: -file option is deprecated, please use generic option -files instead.
-packageJobJar: [p3_q2_mapper.py, p3_q2_reducer.py] [/usr/lib/hadoop/hadoop-streaming-2.7.3-amzn-6.jar] /tmp/streamjob3559319313568524765.jar tmpDir=null
-18/02/16 06:43:34 INFO impl.TimelineClientImpl: Timeline service address: http://ip-172-31-6-65.us-east-2.compute.internal:8188/ws/v1/timeline/
-18/02/16 06:43:34 INFO client.RMProxy: Connecting to ResourceManager at ip-172-31-6-65.us-east-2.compute.internal/172.31.6.65:8032
-18/02/16 06:43:34 INFO impl.TimelineClientImpl: Timeline service address: http://ip-172-31-6-65.us-east-2.compute.internal:8188/ws/v1/timeline/
-18/02/16 06:43:34 INFO client.RMProxy: Connecting to ResourceManager at ip-172-31-6-65.us-east-2.compute.internal/172.31.6.65:8032
-18/02/16 06:43:35 INFO lzo.GPLNativeCodeLoader: Loaded native gpl library
-18/02/16 06:43:35 INFO lzo.LzoCodec: Successfully loaded & initialized native-lzo library [hadoop-lzo rev fc548a0642e795113789414490c9e59e6a8b91e4]
-18/02/16 06:43:35 INFO mapred.FileInputFormat: Total input paths to process : 4
-18/02/16 06:43:35 INFO mapreduce.JobSubmitter: number of splits:8
-18/02/16 06:43:35 INFO mapreduce.JobSubmitter: Submitting tokens for job: job_1518759988148_0003
-18/02/16 06:43:35 INFO impl.YarnClientImpl: Submitted application application_1518759988148_0003
-18/02/16 06:43:36 INFO mapreduce.Job: The url to track the job: http://ip-172-31-6-65.us-east-2.compute.internal:20888/proxy/application_1518759988148_0003/
-18/02/16 06:43:36 INFO mapreduce.Job: Running job: job_1518759988148_0003
-18/02/16 06:43:43 INFO mapreduce.Job: Job job_1518759988148_0003 running in uber mode : false
-18/02/16 06:43:43 INFO mapreduce.Job:  map 0% reduce 0%
-18/02/16 06:43:52 INFO mapreduce.Job:  map 25% reduce 0%
-18/02/16 06:44:00 INFO mapreduce.Job:  map 100% reduce 0%
-18/02/16 06:44:05 INFO mapreduce.Job:  map 100% reduce 33%
-18/02/16 06:44:08 INFO mapreduce.Job:  map 100% reduce 67%
-18/02/16 06:44:09 INFO mapreduce.Job:  map 100% reduce 100%
-18/02/16 06:44:09 INFO mapreduce.Job: Job job_1518759988148_0003 completed successfully
-18/02/16 06:44:09 INFO mapreduce.Job: Counters: 50
+18/02/17 02:07:41 WARN streaming.StreamJob: -file option is deprecated, please use generic option -files instead.
+packageJobJar: [p3_q2_mapper.py, p3_q2_reducer.py] [/usr/lib/hadoop/hadoop-streaming-2.7.3-amzn-6.jar] /tmp/streamjob3916501766417120251.jar tmpDir=null
+18/02/17 02:07:43 INFO impl.TimelineClientImpl: Timeline service address: http://ip-172-31-13-128.us-east-2.compute.internal:8188/ws/v1/timeline/
+18/02/17 02:07:43 INFO client.RMProxy: Connecting to ResourceManager at ip-172-31-13-128.us-east-2.compute.internal/172.31.13.128:8032
+18/02/17 02:07:44 INFO impl.TimelineClientImpl: Timeline service address: http://ip-172-31-13-128.us-east-2.compute.internal:8188/ws/v1/timeline/
+18/02/17 02:07:44 INFO client.RMProxy: Connecting to ResourceManager at ip-172-31-13-128.us-east-2.compute.internal/172.31.13.128:8032
+18/02/17 02:07:45 INFO lzo.GPLNativeCodeLoader: Loaded native gpl library
+18/02/17 02:07:45 INFO lzo.LzoCodec: Successfully loaded & initialized native-lzo library [hadoop-lzo rev fc548a0642e795113789414490c9e59e6a8b91e4]
+18/02/17 02:07:45 INFO mapred.FileInputFormat: Total input paths to process : 4
+18/02/17 02:07:45 INFO mapreduce.JobSubmitter: number of splits:8
+18/02/17 02:07:45 INFO mapreduce.JobSubmitter: Submitting tokens for job: job_1518832184941_0003
+18/02/17 02:07:46 INFO impl.YarnClientImpl: Submitted application application_1518832184941_0003
+18/02/17 02:07:46 INFO mapreduce.Job: The url to track the job: http://ip-172-31-13-128.us-east-2.compute.internal:20888/proxy/application_1518832184941_0003/
+18/02/17 02:07:46 INFO mapreduce.Job: Running job: job_1518832184941_0003
+18/02/17 02:07:53 INFO mapreduce.Job: Job job_1518832184941_0003 running in uber mode : false
+18/02/17 02:07:53 INFO mapreduce.Job:  map 0% reduce 0%
+18/02/17 02:08:02 INFO mapreduce.Job:  map 25% reduce 0%
+18/02/17 02:08:10 INFO mapreduce.Job:  map 100% reduce 0%
+18/02/17 02:08:15 INFO mapreduce.Job:  map 100% reduce 33%
+18/02/17 02:08:17 INFO mapreduce.Job:  map 100% reduce 67%
+18/02/17 02:08:19 INFO mapreduce.Job:  map 100% reduce 100%
+18/02/17 02:08:19 INFO mapreduce.Job: Job job_1518832184941_0003 completed successfully
+18/02/17 02:08:19 INFO mapreduce.Job: Counters: 50
 	File System Counters
 		FILE: Number of bytes read=418970
-		FILE: Number of bytes written=2277531
+		FILE: Number of bytes written=2277949
 		FILE: Number of read operations=0
 		FILE: Number of large read operations=0
 		FILE: Number of write operations=0
-		HDFS: Number of bytes read=14078338
-		HDFS: Number of bytes written=419
+		HDFS: Number of bytes read=14078354
+		HDFS: Number of bytes written=367
 		HDFS: Number of read operations=33
 		HDFS: Number of large read operations=0
 		HDFS: Number of write operations=6
@@ -428,20 +436,20 @@ packageJobJar: [p3_q2_mapper.py, p3_q2_reducer.py] [/usr/lib/hadoop/hadoop-strea
 		Launched map tasks=8
 		Launched reduce tasks=3
 		Data-local map tasks=8
-		Total time spent by all maps in occupied slots (ms)=4274880
-		Total time spent by all reduces in occupied slots (ms)=1812000
-		Total time spent by all map tasks (ms)=89060
-		Total time spent by all reduce tasks (ms)=18875
-		Total vcore-milliseconds taken by all map tasks=89060
-		Total vcore-milliseconds taken by all reduce tasks=18875
-		Total megabyte-milliseconds taken by all map tasks=136796160
-		Total megabyte-milliseconds taken by all reduce tasks=57984000
+		Total time spent by all maps in occupied slots (ms)=4253808
+		Total time spent by all reduces in occupied slots (ms)=1651584
+		Total time spent by all map tasks (ms)=88621
+		Total time spent by all reduce tasks (ms)=17204
+		Total vcore-milliseconds taken by all map tasks=88621
+		Total vcore-milliseconds taken by all reduce tasks=17204
+		Total megabyte-milliseconds taken by all map tasks=136121856
+		Total megabyte-milliseconds taken by all reduce tasks=52850688
 	Map-Reduce Framework
 		Map input records=243750
 		Map output records=243750
 		Map output bytes=8100000
 		Map output materialized bytes=420840
-		Input split bytes=1072
+		Input split bytes=1088
 		Combine input records=0
 		Combine output records=0
 		Reduce input groups=13
@@ -452,11 +460,11 @@ packageJobJar: [p3_q2_mapper.py, p3_q2_reducer.py] [/usr/lib/hadoop/hadoop-strea
 		Shuffled Maps =24
 		Failed Shuffles=0
 		Merged Map outputs=24
-		GC time elapsed (ms)=2033
-		CPU time spent (ms)=15520
-		Physical memory (bytes) snapshot=3984203776
-		Virtual memory (bytes) snapshot=40086667264
-		Total committed heap usage (bytes)=3647471616
+		GC time elapsed (ms)=2225
+		CPU time spent (ms)=15930
+		Physical memory (bytes) snapshot=4028030976
+		Virtual memory (bytes) snapshot=40072458240
+		Total committed heap usage (bytes)=3697278976
 	Shuffle Errors
 		BAD_ID=0
 		CONNECTION=0
@@ -467,8 +475,8 @@ packageJobJar: [p3_q2_mapper.py, p3_q2_reducer.py] [/usr/lib/hadoop/hadoop-strea
 	File Input Format Counters 
 		Bytes Read=14077266
 	File Output Format Counters 
-		Bytes Written=419
-18/02/16 06:44:09 INFO streaming.StreamJob: Output directory: hdfs:///usr/hadoop/p3_q2
+		Bytes Written=367
+18/02/17 02:08:19 INFO streaming.StreamJob: Output directory: hdfs:///usr/hadoop/p3_q2
 ```
 
 This job executed with **8** splits and **8** mappers and **3** reducers.
@@ -477,27 +485,25 @@ Examining the output:
 ```
 $ hadoop fs -ls hdfs:///usr/hadoop/p3_q2
 Found 4 items
--rw-r--r--   1 hadoop hadoop          0 2018-02-16 06:44 hdfs:///usr/hadoop/p3_q2/_SUCCESS
--rw-r--r--   1 hadoop hadoop        129 2018-02-16 06:44 hdfs:///usr/hadoop/p3_q2/part-00000
--rw-r--r--   1 hadoop hadoop        129 2018-02-16 06:44 hdfs:///usr/hadoop/p3_q2/part-00001
--rw-r--r--   1 hadoop hadoop        161 2018-02-16 06:44 hdfs:///usr/hadoop/p3_q2/part-00002
+-rw-r--r--   1 hadoop hadoop          0 2018-02-17 02:08 hdfs:///usr/hadoop/p3_q2/_SUCCESS
+-rw-r--r--   1 hadoop hadoop        113 2018-02-17 02:08 hdfs:///usr/hadoop/p3_q2/part-00000
+-rw-r--r--   1 hadoop hadoop        113 2018-02-17 02:08 hdfs:///usr/hadoop/p3_q2/part-00001
+-rw-r--r--   1 hadoop hadoop        141 2018-02-17 02:08 hdfs:///usr/hadoop/p3_q2/part-00002
 $ hadoop fs -cat hdfs:///usr/hadoop/p3_q2/*
-http://example.com/?url=1	18746
-http://example.com/?url=11	18737
-http://example.com/?url=4	18746
-http://example.com/?url=7	18741
-http://example.com/?url=12	18745
-http://example.com/?url=2	18745
-http://example.com/?url=5	18728
-http://example.com/?url=8	18737
-http://example.com/?url=0	18740
-http://example.com/?url=10	18750
-http://example.com/?url=3	18740
-http://example.com/?url=6	18747
-http://example.com/?url=9	18743
+http://example.com/?url=1	5
+http://example.com/?url=11	5
+http://example.com/?url=4	5
+http://example.com/?url=7	5
+http://example.com/?url=12	5
+http://example.com/?url=2	5
+http://example.com/?url=5	5
+http://example.com/?url=8	5
+http://example.com/?url=0	5
+http://example.com/?url=10	5
+http://example.com/?url=3	5
+http://example.com/?url=6	5
+http://example.com/?url=9	5
 ```
-
-Note that the numbers do not appear correct and do not match the results from our single-node run.
 
 **Q3**
 
@@ -865,29 +871,27 @@ import sys
 
 
 current_hour = None
-current_url = None
-count = 0
+# For our data we do not have that many URLs for each hour. If the cardinality of this was very large,
+# this set would not be safe for memory. The solution is to once again use a two stage MR job.
+url_set = set()
 
 for line in sys.stdin:
     try:
         hour, url = line.strip().split('\t')
         # If same hour, we might increment count
         if hour == current_hour:
-            # Only increment if this is a new url
-            if url != current_url:
-                count += 1
+            url_set.add(url)
         else:
             # Only emit results if there is data
-            if count > 0:
-                print("{}\t{}".format(current_hour, count))
-            count = 1
-        current_url = url
+            if len(url_set) > 0:
+                print("{}\t{}".format(current_hour, len(url_set)))
+            url_set = set()
         current_hour = hour
     except ValueError:
         continue
 
-if count > 0:
-    print("{}\t{}".format(current_hour, count))
+if len(url_set) > 0:
+    print("{}\t{}".format(current_hour, len(url_set)))
 ```
 
 Since we are grouping by hour, we no longer send every URL to the same reducer and instead send each hour's activity to its own reducer. This advantageously has the effect of distributing our load better.
@@ -907,17 +911,17 @@ $ hadoop jar /usr/lib/hadoop-mapreduce/hadoop-streaming.jar -mapper p4_q1_mapper
 ```
 The map-reduce job status:
 ```
-18/02/16 07:04:07 INFO mapreduce.Job: Running job: job_1518759988148_0005
-18/02/16 07:04:14 INFO mapreduce.Job: Job job_1518759988148_0005 running in uber mode : false
-18/02/16 07:04:14 INFO mapreduce.Job:  map 0% reduce 0%
-18/02/16 07:04:24 INFO mapreduce.Job:  map 25% reduce 0%
-18/02/16 07:04:30 INFO mapreduce.Job:  map 50% reduce 0%
-18/02/16 07:04:31 INFO mapreduce.Job:  map 88% reduce 0%
-18/02/16 07:04:32 INFO mapreduce.Job:  map 100% reduce 0%
-18/02/16 07:04:37 INFO mapreduce.Job:  map 100% reduce 33%
-18/02/16 07:04:39 INFO mapreduce.Job:  map 100% reduce 100%
-18/02/16 07:04:40 INFO mapreduce.Job: Job job_1518759988148_0005 completed successfully
-18/02/16 07:04:40 INFO mapreduce.Job: Counters: 50
+18/02/17 02:23:08 INFO mapreduce.Job: The url to track the job: http://ip-172-31-13-128.us-east-2.compute.internal:20888/proxy/application_1518832184941_0004/
+18/02/17 02:23:08 INFO mapreduce.Job: Running job: job_1518832184941_0004
+18/02/17 02:23:15 INFO mapreduce.Job: Job job_1518832184941_0004 running in uber mode : false
+18/02/17 02:23:15 INFO mapreduce.Job:  map 0% reduce 0%
+18/02/17 02:23:24 INFO mapreduce.Job:  map 13% reduce 0%
+18/02/17 02:23:25 INFO mapreduce.Job:  map 25% reduce 0%
+18/02/17 02:23:32 INFO mapreduce.Job:  map 100% reduce 0%
+18/02/17 02:23:37 INFO mapreduce.Job:  map 100% reduce 33%
+18/02/17 02:23:39 INFO mapreduce.Job:  map 100% reduce 100%
+18/02/17 02:23:40 INFO mapreduce.Job: Job job_1518832184941_0004 completed successfully
+18/02/17 02:23:40 INFO mapreduce.Job: Counters: 50
 ```
 The job had **8** splits with **8** mappers and **3** reducers.
 
@@ -925,18 +929,17 @@ The job results:
 ```
 $ hadoop fs -ls hdfs:///usr/hadoop/p4_q1
 Found 4 items
--rw-r--r--   1 hadoop hadoop          0 2018-02-16 07:04 hdfs:///usr/hadoop/p4_q1/_SUCCESS
--rw-r--r--   1 hadoop hadoop         34 2018-02-16 07:04 hdfs:///usr/hadoop/p4_q1/part-00000
--rw-r--r--   1 hadoop hadoop         17 2018-02-16 07:04 hdfs:///usr/hadoop/p4_q1/part-00001
--rw-r--r--   1 hadoop hadoop         34 2018-02-16 07:04 hdfs:///usr/hadoop/p4_q1/part-00002
+-rw-r--r--   1 hadoop hadoop          0 2018-02-17 02:23 hdfs:///usr/hadoop/p4_q1/_SUCCESS
+-rw-r--r--   1 hadoop hadoop         34 2018-02-17 02:23 hdfs:///usr/hadoop/p4_q1/part-00000
+-rw-r--r--   1 hadoop hadoop         17 2018-02-17 02:23 hdfs:///usr/hadoop/p4_q1/part-00001
+-rw-r--r--   1 hadoop hadoop         34 2018-02-17 02:23 hdfs:///usr/hadoop/p4_q1/part-00002
 $ hadoop fs -cat hdfs:///usr/hadoop/p4_q1/*
-2018-02-13T01	53
-2018-02-13T04	52
-2018-02-13T02	57
-2018-02-13T00	52
-2018-02-13T03	65
+2018-02-13T01	13
+2018-02-13T04	13
+2018-02-13T02	13
+2018-02-13T00	13
+2018-02-13T03	13
 ```
-Note that the results do not appear correct and do not match our single-node results.
 
 **Q2**
 
@@ -970,8 +973,10 @@ The reducer is `p4_q2_reducer.py`:
 
 import sys
 
-current_user = None
 current_url_hour = None
+# For our data we do not have that many users for each URL/hour combination. If the cardinality of this was very large,
+# this set would not be safe for memory. The solution is to once again use a two stage MR job.
+user_set = set()
 count = 0
 
 for line in sys.stdin:
@@ -979,21 +984,18 @@ for line in sys.stdin:
         url_hour, user = line.strip().split('\t')
         # If same URL/hour, we might increment count
         if url_hour == current_url_hour:
-            # Only increment if this is a new user
-            if user != current_user:
-                count += 1
+            user_set.add(user)
         else:
             # Only emit results if there is data
-            if count > 0:
-                print("{}\t{}".format(current_url_hour, count))
-            count = 1
-        current_user = user
+            if len(user_set) > 0:
+                print("{}\t{}".format(current_url_hour, len(user_set)))
+            user_set = set()
         current_url_hour = url_hour
     except ValueError:
         continue
 
-if count > 0:
-    print("{}\t{}".format(current_url_hour, count))
+if len(user_set) > 0:
+    print("{}\t{}".format(current_url_hour, len(user_set)))
 ```
 
 The change here is we now form a key for the mapper that is a combination of the url and hour so that these go to the same reducer.
@@ -1075,17 +1077,17 @@ $ hadoop jar /usr/lib/hadoop-mapreduce/hadoop-streaming.jar -mapper p4_q2_mapper
 
 The map-reduce job status:
 ```
-18/02/16 07:08:53 INFO mapreduce.Job: Running job: job_1518759988148_0006
-18/02/16 07:09:01 INFO mapreduce.Job: Job job_1518759988148_0006 running in uber mode : false
-18/02/16 07:09:01 INFO mapreduce.Job:  map 0% reduce 0%
-18/02/16 07:09:10 INFO mapreduce.Job:  map 25% reduce 0%
-18/02/16 07:09:16 INFO mapreduce.Job:  map 50% reduce 0%
-18/02/16 07:09:17 INFO mapreduce.Job:  map 88% reduce 0%
-18/02/16 07:09:18 INFO mapreduce.Job:  map 100% reduce 0%
-18/02/16 07:09:22 INFO mapreduce.Job:  map 100% reduce 33%
-18/02/16 07:09:24 INFO mapreduce.Job:  map 100% reduce 100%
-18/02/16 07:09:25 INFO mapreduce.Job: Job job_1518759988148_0006 completed successfully
-18/02/16 07:09:26 INFO mapreduce.Job: Counters: 50
+18/02/17 02:27:00 INFO mapreduce.Job: The url to track the job: http://ip-172-31-13-128.us-east-2.compute.internal:20888/proxy/application_1518832184941_0005/
+18/02/17 02:27:00 INFO mapreduce.Job: Running job: job_1518832184941_0005
+18/02/17 02:27:08 INFO mapreduce.Job: Job job_1518832184941_0005 running in uber mode : false
+18/02/17 02:27:08 INFO mapreduce.Job:  map 0% reduce 0%
+18/02/17 02:27:17 INFO mapreduce.Job:  map 25% reduce 0%
+18/02/17 02:27:24 INFO mapreduce.Job:  map 75% reduce 0%
+18/02/17 02:27:25 INFO mapreduce.Job:  map 100% reduce 0%
+18/02/17 02:27:29 INFO mapreduce.Job:  map 100% reduce 33%
+18/02/17 02:27:32 INFO mapreduce.Job:  map 100% reduce 100%
+18/02/17 02:27:32 INFO mapreduce.Job: Job job_1518832184941_0005 completed successfully
+18/02/17 02:27:32 INFO mapreduce.Job: Counters: 50
 ```
 
 The job ran with **8** splits and **8** mappers and **3** reducers.
@@ -1094,48 +1096,47 @@ The results:
 ```
 $ hadoop fs -ls hdfs:///usr/hadoop/p4_q2
 Found 4 items
--rw-r--r--   1 hadoop hadoop          0 2018-02-16 07:09 hdfs:///usr/hadoop/p4_q2/_SUCCESS
--rw-r--r--   1 hadoop hadoop        944 2018-02-16 07:09 hdfs:///usr/hadoop/p4_q2/part-00000
--rw-r--r--   1 hadoop hadoop       1134 2018-02-16 07:09 hdfs:///usr/hadoop/p4_q2/part-00001
--rw-r--r--   1 hadoop hadoop        992 2018-02-16 07:09 hdfs:///usr/hadoop/p4_q2/part-00002
+-rw-r--r--   1 hadoop hadoop          0 2018-02-17 02:27 hdfs:///usr/hadoop/p4_q2/_SUCCESS
+-rw-r--r--   1 hadoop hadoop        884 2018-02-17 02:27 hdfs:///usr/hadoop/p4_q2/part-00000
+-rw-r--r--   1 hadoop hadoop       1062 2018-02-17 02:27 hdfs:///usr/hadoop/p4_q2/part-00001
+-rw-r--r--   1 hadoop hadoop        929 2018-02-17 02:27 hdfs:///usr/hadoop/p4_q2/part-00002
 $ hadoop fs -cat hdfs:///usr/hadoop/p4_q2/part-00000 | head -n5
-http://example.com/?url=0 : 2018-02-13T02	3746
-http://example.com/?url=1 : 2018-02-13T00	3745
-http://example.com/?url=1 : 2018-02-13T03	3748
-http://example.com/?url=10 : 2018-02-13T02	3747
-http://example.com/?url=11 : 2018-02-13T00	3746
+http://example.com/?url=0 : 2018-02-13T02	5
+http://example.com/?url=1 : 2018-02-13T00	5
+http://example.com/?url=1 : 2018-02-13T03	5
+http://example.com/?url=10 : 2018-02-13T02	5
+http://example.com/?url=11 : 2018-02-13T00	5
 $ hadoop fs -cat hdfs:///usr/hadoop/p4_q2/part-00001 | head -n5
-http://example.com/?url=0 : 2018-02-13T00	3746
-http://example.com/?url=0 : 2018-02-13T03	3750
-http://example.com/?url=1 : 2018-02-13T01	3747
-http://example.com/?url=1 : 2018-02-13T04	3748
-http://example.com/?url=10 : 2018-02-13T00	3746
+http://example.com/?url=0 : 2018-02-13T00	5
+http://example.com/?url=0 : 2018-02-13T03	5
+http://example.com/?url=1 : 2018-02-13T01	5
+http://example.com/?url=1 : 2018-02-13T04	5
+http://example.com/?url=10 : 2018-02-13T00	5
 $ hadoop fs -cat hdfs:///usr/hadoop/p4_q2/part-00002 | head -n5
-http://example.com/?url=0 : 2018-02-13T01	3750
-http://example.com/?url=0 : 2018-02-13T04	3750
-http://example.com/?url=1 : 2018-02-13T02	3750
-http://example.com/?url=10 : 2018-02-13T01	3746
-http://example.com/?url=10 : 2018-02-13T04	3750
-$ hadoop fs -cat hdfs:///usr/hadoop/p4_q2/part-00000 | tail -n5
-http://example.com/?url=7 : 2018-02-13T00	3750
-http://example.com/?url=7 : 2018-02-13T03	3744
-http://example.com/?url=8 : 2018-02-13T01	3746
-http://example.com/?url=8 : 2018-02-13T04	3750
-http://example.com/?url=9 : 2018-02-13T02	3750
+http://example.com/?url=0 : 2018-02-13T01	5
+http://example.com/?url=0 : 2018-02-13T04	5
+http://example.com/?url=1 : 2018-02-13T02	5
+http://example.com/?url=10 : 2018-02-13T01	5
+http://example.com/?url=10 : 2018-02-13T04	5
+$  hadoop fs -cat hdfs:///usr/hadoop/p4_q2/part-00000 | tail -n5
+http://example.com/?url=7 : 2018-02-13T00	5
+http://example.com/?url=7 : 2018-02-13T03	5
+http://example.com/?url=8 : 2018-02-13T01	5
+http://example.com/?url=8 : 2018-02-13T04	5
+http://example.com/?url=9 : 2018-02-13T02	5
 $ hadoop fs -cat hdfs:///usr/hadoop/p4_q2/part-00001 | tail -n5
-http://example.com/?url=7 : 2018-02-13T01	3750
-http://example.com/?url=7 : 2018-02-13T04	3748
-http://example.com/?url=8 : 2018-02-13T02	3748
-http://example.com/?url=9 : 2018-02-13T00	3746
-http://example.com/?url=9 : 2018-02-13T03	3750
+http://example.com/?url=7 : 2018-02-13T01	5
+http://example.com/?url=7 : 2018-02-13T04	5
+http://example.com/?url=8 : 2018-02-13T02	5
+http://example.com/?url=9 : 2018-02-13T00	5
+http://example.com/?url=9 : 2018-02-13T03	5
 $ hadoop fs -cat hdfs:///usr/hadoop/p4_q2/part-00002 | tail -n5
-http://example.com/?url=7 : 2018-02-13T02	3750
-http://example.com/?url=8 : 2018-02-13T00	3750
-http://example.com/?url=8 : 2018-02-13T03	3750
-http://example.com/?url=9 : 2018-02-13T01	3748
-http://example.com/?url=9 : 2018-02-13T04	3750
+http://example.com/?url=7 : 2018-02-13T02	5
+http://example.com/?url=8 : 2018-02-13T00	5
+http://example.com/?url=8 : 2018-02-13T03	5
+http://example.com/?url=9 : 2018-02-13T01	5
+http://example.com/?url=9 : 2018-02-13T04	5
 ```
-Once again the results do not appear correct and do not match our single-node results.
 
 **Q3**
 
@@ -1275,7 +1276,8 @@ The job ran with **8** splits and **8** mappers and **3** reducers.
 
 ### Problem 5
 
-The approach for this problem will be to run two map reduce jobs. The first job is essentially a "word count" job (a mapper that outputs tuples with URL and count 1 and a reducer that outputs the total number of times each URL is observed). The second job sends all URLs and their counts to the same reducer so we can emit only those URLs that are the five most common. Note that this implementation does not implement a stable sort algorithm, decides ties in favor of the first present, and print the final top 5 results in order of frequency since these requirements were not specified. Since these are properties that could plausibly be desired to be altered, however, comments in the program source code suggest how this could be done.
+The approach for this problem will be to run two map reduce jobs. The first job is essentially a "word count" job (a mapper that outputs tuples with URL and count 1 and a reducer that outputs the total number of times each URL is observed). The second job sends all URLs and their counts to the same reducer so we can emit only those URLs that are the five most common. Note that this implementation does not implement a stable sort algorithm, decides ties in favor of the first present, and *doesn't* necessarily print the final top 5 results in order of frequency since these requirements were not specified. Since these are properties that could plausibly be desired to be altered, however, comments in the program source code suggest how this could be done.
+
 
 The first mapper is `p5_s1_mapper.py`:
 ```
@@ -1351,6 +1353,12 @@ count_dict = {}
 TOP_N = 5
 
 def add_to_dict(current_dict, url, count):
+    """
+    Update an return a dictionary with the highest-count URLs
+    :param current_dict: A dictionary that holds the current state of the highest-count URLs
+    :param url: A candidate URl that could be included in the top count
+    :param count: The count value for the URL
+    """
     # If we don't yet have the TOP_N items, add the url and count to the dict
     if len(current_dict) < TOP_N:
         current_dict[url] = count
@@ -1381,7 +1389,6 @@ for line in sys.stdin:
 # before printing
 for k, v in count_dict.iteritems():
     print("{}\t{}".format(k, v))
-
 ```
 
 
@@ -1395,64 +1402,72 @@ http://example.com/?url=0	18750
 http://example.com/?url=1	18750
 ```
 
-On Hadoop we will launch two jobs. The first stage:
+Our first job will read and write to S3. Our second job will then read these results from S3 and write the final results to HDFS. On Hadoop we will launch two jobs. The first stage:
 ```
-$ hadoop jar /usr/lib/hadoop-mapreduce/hadoop-streaming.jar -mapper p5_s1_mapper.py -reducer p5_s1_reducer.py -file p5_s1_mapper.py -file p5_s1_reducer.py -input hdfs:///user/hadoop/input/ -output hdfs:///usr/hadoop/p5_s1
-18/02/16 07:31:19 WARN streaming.StreamJob: -file option is deprecated, please use generic option -files instead.
-packageJobJar: [p5_s1_mapper.py, p5_s1_reducer.py] [/usr/lib/hadoop/hadoop-streaming-2.7.3-amzn-6.jar] /tmp/streamjob4170177770369322271.jar tmpDir=null
-18/02/16 07:31:21 INFO impl.TimelineClientImpl: Timeline service address: http://ip-172-31-6-65.us-east-2.compute.internal:8188/ws/v1/timeline/
-18/02/16 07:31:21 INFO client.RMProxy: Connecting to ResourceManager at ip-172-31-6-65.us-east-2.compute.internal/172.31.6.65:8032
-18/02/16 07:31:21 INFO impl.TimelineClientImpl: Timeline service address: http://ip-172-31-6-65.us-east-2.compute.internal:8188/ws/v1/timeline/
-18/02/16 07:31:21 INFO client.RMProxy: Connecting to ResourceManager at ip-172-31-6-65.us-east-2.compute.internal/172.31.6.65:8032
-18/02/16 07:31:22 INFO lzo.GPLNativeCodeLoader: Loaded native gpl library
-18/02/16 07:31:22 INFO lzo.LzoCodec: Successfully loaded & initialized native-lzo library [hadoop-lzo rev fc548a0642e795113789414490c9e59e6a8b91e4]
-18/02/16 07:31:22 INFO mapred.FileInputFormat: Total input paths to process : 4
-18/02/16 07:31:22 INFO mapreduce.JobSubmitter: number of splits:8
-18/02/16 07:31:22 INFO mapreduce.JobSubmitter: Submitting tokens for job: job_1518759988148_0008
-18/02/16 07:31:22 INFO impl.YarnClientImpl: Submitted application application_1518759988148_0008
-18/02/16 07:31:22 INFO mapreduce.Job: The url to track the job: http://ip-172-31-6-65.us-east-2.compute.internal:20888/proxy/application_1518759988148_0008/
-18/02/16 07:31:22 INFO mapreduce.Job: Running job: job_1518759988148_0008
-18/02/16 07:31:29 INFO mapreduce.Job: Job job_1518759988148_0008 running in uber mode : false
-18/02/16 07:31:29 INFO mapreduce.Job:  map 0% reduce 0%
-18/02/16 07:31:38 INFO mapreduce.Job:  map 13% reduce 0%
-18/02/16 07:31:39 INFO mapreduce.Job:  map 25% reduce 0%
-18/02/16 07:31:44 INFO mapreduce.Job:  map 50% reduce 0%
-18/02/16 07:31:45 INFO mapreduce.Job:  map 75% reduce 0%
-18/02/16 07:31:46 INFO mapreduce.Job:  map 100% reduce 0%
-18/02/16 07:31:51 INFO mapreduce.Job:  map 100% reduce 67%
-18/02/16 07:31:52 INFO mapreduce.Job:  map 100% reduce 100%
-18/02/16 07:31:52 INFO mapreduce.Job: Job job_1518759988148_0008 completed successfully
-18/02/16 07:31:52 INFO mapreduce.Job: Counters: 50
+$ hadoop jar /usr/lib/hadoop-mapreduce/hadoop-streaming.jar -mapper p5_s1_mapper.py -reducer p5_s1_reducer.py -file p5_s1_mapper.py -file p5_s1_reducer.py -input s3n://aws-logs-607380799823-us-east-2/logs/  -output s3n://aws-logs-607380799823-us-east-2/p5_s1
+18/02/17 02:39:10 WARN streaming.StreamJob: -file option is deprecated, please use generic option -files instead.
+packageJobJar: [p5_s1_mapper.py, p5_s1_reducer.py] [/usr/lib/hadoop/hadoop-streaming-2.7.3-amzn-6.jar] /tmp/streamjob4016911128321623831.jar tmpDir=null
+18/02/17 02:39:12 INFO impl.TimelineClientImpl: Timeline service address: http://ip-172-31-13-128.us-east-2.compute.internal:8188/ws/v1/timeline/
+18/02/17 02:39:12 INFO client.RMProxy: Connecting to ResourceManager at ip-172-31-13-128.us-east-2.compute.internal/172.31.13.128:8032
+18/02/17 02:39:12 INFO impl.TimelineClientImpl: Timeline service address: http://ip-172-31-13-128.us-east-2.compute.internal:8188/ws/v1/timeline/
+18/02/17 02:39:12 INFO client.RMProxy: Connecting to ResourceManager at ip-172-31-13-128.us-east-2.compute.internal/172.31.13.128:8032
+18/02/17 02:39:16 INFO lzo.GPLNativeCodeLoader: Loaded native gpl library
+18/02/17 02:39:16 INFO lzo.LzoCodec: Successfully loaded & initialized native-lzo library [hadoop-lzo rev fc548a0642e795113789414490c9e59e6a8b91e4]
+18/02/17 02:39:16 INFO mapred.FileInputFormat: Total input paths to process : 4
+18/02/17 02:39:16 INFO mapreduce.JobSubmitter: number of splits:8
+18/02/17 02:39:16 INFO mapreduce.JobSubmitter: Submitting tokens for job: job_1518832184941_0007
+18/02/17 02:39:16 INFO impl.YarnClientImpl: Submitted application application_1518832184941_0007
+18/02/17 02:39:16 INFO mapreduce.Job: The url to track the job: http://ip-172-31-13-128.us-east-2.compute.internal:20888/proxy/application_1518832184941_0007/
+18/02/17 02:39:16 INFO mapreduce.Job: Running job: job_1518832184941_0007
+18/02/17 02:39:24 INFO mapreduce.Job: Job job_1518832184941_0007 running in uber mode : false
+18/02/17 02:39:24 INFO mapreduce.Job:  map 0% reduce 0%
+18/02/17 02:39:40 INFO mapreduce.Job:  map 13% reduce 0%
+18/02/17 02:39:41 INFO mapreduce.Job:  map 25% reduce 0%
+18/02/17 02:39:48 INFO mapreduce.Job:  map 38% reduce 0%
+18/02/17 02:39:52 INFO mapreduce.Job:  map 63% reduce 0%
+18/02/17 02:39:53 INFO mapreduce.Job:  map 88% reduce 0%
+18/02/17 02:39:55 INFO mapreduce.Job:  map 100% reduce 0%
+18/02/17 02:40:00 INFO mapreduce.Job:  map 100% reduce 33%
+18/02/17 02:40:08 INFO mapreduce.Job:  map 100% reduce 67%
+18/02/17 02:40:10 INFO mapreduce.Job:  map 100% reduce 100%
+18/02/17 02:40:10 INFO mapreduce.Job: Job job_1518832184941_0007 completed successfully
+18/02/17 02:40:10 INFO mapreduce.Job: Counters: 56
 	File System Counters
 		FILE: Number of bytes read=353318
-		FILE: Number of bytes written=2145389
+		FILE: Number of bytes written=2145697
 		FILE: Number of read operations=0
 		FILE: Number of large read operations=0
 		FILE: Number of write operations=0
-		HDFS: Number of bytes read=14078338
-		HDFS: Number of bytes written=419
-		HDFS: Number of read operations=33
+		HDFS: Number of bytes read=840
+		HDFS: Number of bytes written=0
+		HDFS: Number of read operations=8
 		HDFS: Number of large read operations=0
-		HDFS: Number of write operations=6
+		HDFS: Number of write operations=0
+		S3N: Number of bytes read=14026310
+		S3N: Number of bytes written=419
+		S3N: Number of read operations=0
+		S3N: Number of large read operations=0
+		S3N: Number of write operations=0
 	Job Counters 
 		Killed map tasks=1
+		Killed reduce tasks=1
 		Launched map tasks=8
 		Launched reduce tasks=3
 		Data-local map tasks=8
-		Total time spent by all maps in occupied slots (ms)=4006128
-		Total time spent by all reduces in occupied slots (ms)=1604928
-		Total time spent by all map tasks (ms)=83461
-		Total time spent by all reduce tasks (ms)=16718
-		Total vcore-milliseconds taken by all map tasks=83461
-		Total vcore-milliseconds taken by all reduce tasks=16718
-		Total megabyte-milliseconds taken by all map tasks=128196096
-		Total megabyte-milliseconds taken by all reduce tasks=51357696
+		Total time spent by all maps in occupied slots (ms)=6626016
+		Total time spent by all reduces in occupied slots (ms)=3379776
+		Total time spent by all map tasks (ms)=138042
+		Total time spent by all reduce tasks (ms)=35206
+		Total vcore-milliseconds taken by all map tasks=138042
+		Total vcore-milliseconds taken by all reduce tasks=35206
+		Total megabyte-milliseconds taken by all map tasks=212032512
+		Total megabyte-milliseconds taken by all reduce tasks=108152832
 	Map-Reduce Framework
 		Map input records=243750
 		Map output records=243750
 		Map output bytes=6881250
 		Map output materialized bytes=354350
-		Input split bytes=1072
+		Input split bytes=840
 		Combine input records=0
 		Combine output records=0
 		Reduce input groups=13
@@ -1463,11 +1478,11 @@ packageJobJar: [p5_s1_mapper.py, p5_s1_reducer.py] [/usr/lib/hadoop/hadoop-strea
 		Shuffled Maps =24
 		Failed Shuffles=0
 		Merged Map outputs=24
-		GC time elapsed (ms)=2184
-		CPU time spent (ms)=15380
-		Physical memory (bytes) snapshot=3919400960
-		Virtual memory (bytes) snapshot=40070160384
-		Total committed heap usage (bytes)=3584557056
+		GC time elapsed (ms)=5287
+		CPU time spent (ms)=18900
+		Physical memory (bytes) snapshot=5492535296
+		Virtual memory (bytes) snapshot=40420642816
+		Total committed heap usage (bytes)=5015863296
 	Shuffle Errors
 		BAD_ID=0
 		CONNECTION=0
@@ -1476,72 +1491,79 @@ packageJobJar: [p5_s1_mapper.py, p5_s1_reducer.py] [/usr/lib/hadoop/hadoop-strea
 		WRONG_MAP=0
 		WRONG_REDUCE=0
 	File Input Format Counters 
-		Bytes Read=14077266
+		Bytes Read=14026310
 	File Output Format Counters 
 		Bytes Written=419
-18/02/16 07:31:52 INFO streaming.StreamJob: Output directory: hdfs:///usr/hadoop/p5_s1
+18/02/17 02:40:10 INFO streaming.StreamJob: Output directory: s3n://aws-logs-607380799823-us-east-2/p5_s1
 ```
 This job had **8** splits and **8** mappers and **3** reducers.
+
 The second stage job:
 ```
-$ hadoop jar /usr/lib/hadoop-mapreduce/hadoop-streaming.jar -mapper p5_s2_mapper.py -reducer p5_s2_reducer.py -file p5_s2_mapper.py -file p5_s2_reducer.py -input hdfs:///usr/hadoop/p5_s1/part-* -output hdfs:///usr/hadoop/p5_s2
-18/02/16 07:35:09 WARN streaming.StreamJob: -file option is deprecated, please use generic option -files instead.
-packageJobJar: [p5_s2_mapper.py, p5_s2_reducer.py] [/usr/lib/hadoop/hadoop-streaming-2.7.3-amzn-6.jar] /tmp/streamjob5787620715470967391.jar tmpDir=null
-18/02/16 07:35:11 INFO impl.TimelineClientImpl: Timeline service address: http://ip-172-31-6-65.us-east-2.compute.internal:8188/ws/v1/timeline/
-18/02/16 07:35:11 INFO client.RMProxy: Connecting to ResourceManager at ip-172-31-6-65.us-east-2.compute.internal/172.31.6.65:8032
-18/02/16 07:35:12 INFO impl.TimelineClientImpl: Timeline service address: http://ip-172-31-6-65.us-east-2.compute.internal:8188/ws/v1/timeline/
-18/02/16 07:35:12 INFO client.RMProxy: Connecting to ResourceManager at ip-172-31-6-65.us-east-2.compute.internal/172.31.6.65:8032
-18/02/16 07:35:12 INFO lzo.GPLNativeCodeLoader: Loaded native gpl library
-18/02/16 07:35:12 INFO lzo.LzoCodec: Successfully loaded & initialized native-lzo library [hadoop-lzo rev fc548a0642e795113789414490c9e59e6a8b91e4]
-18/02/16 07:35:12 INFO mapred.FileInputFormat: Total input paths to process : 3
-18/02/16 07:35:12 INFO mapreduce.JobSubmitter: number of splits:9
-18/02/16 07:35:13 INFO mapreduce.JobSubmitter: Submitting tokens for job: job_1518759988148_0009
-18/02/16 07:35:13 INFO impl.YarnClientImpl: Submitted application application_1518759988148_0009
-18/02/16 07:35:13 INFO mapreduce.Job: The url to track the job: http://ip-172-31-6-65.us-east-2.compute.internal:20888/proxy/application_1518759988148_0009/
-18/02/16 07:35:13 INFO mapreduce.Job: Running job: job_1518759988148_0009
-18/02/16 07:35:20 INFO mapreduce.Job: Job job_1518759988148_0009 running in uber mode : false
-18/02/16 07:35:20 INFO mapreduce.Job:  map 0% reduce 0%
-18/02/16 07:35:28 INFO mapreduce.Job:  map 11% reduce 0%
-18/02/16 07:35:29 INFO mapreduce.Job:  map 22% reduce 0%
-18/02/16 07:35:34 INFO mapreduce.Job:  map 44% reduce 0%
-18/02/16 07:35:35 INFO mapreduce.Job:  map 78% reduce 0%
-18/02/16 07:35:36 INFO mapreduce.Job:  map 89% reduce 0%
-18/02/16 07:35:40 INFO mapreduce.Job:  map 100% reduce 0%
-18/02/16 07:35:41 INFO mapreduce.Job:  map 100% reduce 67%
-18/02/16 07:35:45 INFO mapreduce.Job:  map 100% reduce 100%
-18/02/16 07:35:45 INFO mapreduce.Job: Job job_1518759988148_0009 completed successfully
-18/02/16 07:35:45 INFO mapreduce.Job: Counters: 51
+$ hadoop jar /usr/lib/hadoop-mapreduce/hadoop-streaming.jar -mapper p5_s2_mapper.py -reducer p5_s2_reducer.py -file p5_s2_mapper.py -file p5_s2_reducer.py -input s3n://aws-logs-607380799823-us-east-2/p5_s1 -output hdfs:///usr/hadoop/p5_s2
+18/02/17 02:40:33 WARN streaming.StreamJob: -file option is deprecated, please use generic option -files instead.
+packageJobJar: [p5_s2_mapper.py, p5_s2_reducer.py] [/usr/lib/hadoop/hadoop-streaming-2.7.3-amzn-6.jar] /tmp/streamjob3300520828920945149.jar tmpDir=null
+18/02/17 02:40:35 INFO impl.TimelineClientImpl: Timeline service address: http://ip-172-31-13-128.us-east-2.compute.internal:8188/ws/v1/timeline/
+18/02/17 02:40:35 INFO client.RMProxy: Connecting to ResourceManager at ip-172-31-13-128.us-east-2.compute.internal/172.31.13.128:8032
+18/02/17 02:40:35 INFO impl.TimelineClientImpl: Timeline service address: http://ip-172-31-13-128.us-east-2.compute.internal:8188/ws/v1/timeline/
+18/02/17 02:40:35 INFO client.RMProxy: Connecting to ResourceManager at ip-172-31-13-128.us-east-2.compute.internal/172.31.13.128:8032
+18/02/17 02:40:36 INFO lzo.GPLNativeCodeLoader: Loaded native gpl library
+18/02/17 02:40:36 INFO lzo.LzoCodec: Successfully loaded & initialized native-lzo library [hadoop-lzo rev fc548a0642e795113789414490c9e59e6a8b91e4]
+18/02/17 02:40:41 INFO mapred.FileInputFormat: Total input paths to process : 3
+18/02/17 02:40:41 INFO mapreduce.JobSubmitter: number of splits:9
+18/02/17 02:40:41 INFO mapreduce.JobSubmitter: Submitting tokens for job: job_1518832184941_0008
+18/02/17 02:40:42 INFO impl.YarnClientImpl: Submitted application application_1518832184941_0008
+18/02/17 02:40:42 INFO mapreduce.Job: The url to track the job: http://ip-172-31-13-128.us-east-2.compute.internal:20888/proxy/application_1518832184941_0008/
+18/02/17 02:40:42 INFO mapreduce.Job: Running job: job_1518832184941_0008
+18/02/17 02:40:49 INFO mapreduce.Job: Job job_1518832184941_0008 running in uber mode : false
+18/02/17 02:40:49 INFO mapreduce.Job:  map 0% reduce 0%
+18/02/17 02:41:01 INFO mapreduce.Job:  map 11% reduce 0%
+18/02/17 02:41:03 INFO mapreduce.Job:  map 22% reduce 0%
+18/02/17 02:41:12 INFO mapreduce.Job:  map 33% reduce 0%
+18/02/17 02:41:14 INFO mapreduce.Job:  map 56% reduce 0%
+18/02/17 02:41:15 INFO mapreduce.Job:  map 67% reduce 0%
+18/02/17 02:41:17 INFO mapreduce.Job:  map 78% reduce 0%
+18/02/17 02:41:18 INFO mapreduce.Job:  map 89% reduce 0%
+18/02/17 02:41:25 INFO mapreduce.Job:  map 100% reduce 33%
+18/02/17 02:41:26 INFO mapreduce.Job:  map 100% reduce 67%
+18/02/17 02:41:29 INFO mapreduce.Job:  map 100% reduce 100%
+18/02/17 02:41:29 INFO mapreduce.Job: Job job_1518832184941_0008 completed successfully
+18/02/17 02:41:29 INFO mapreduce.Job: Counters: 55
 	File System Counters
 		FILE: Number of bytes read=169
-		FILE: Number of bytes written=1569476
+		FILE: Number of bytes written=1570100
 		FILE: Number of read operations=0
 		FILE: Number of large read operations=0
 		FILE: Number of write operations=0
-		HDFS: Number of bytes read=1986
+		HDFS: Number of bytes read=954
 		HDFS: Number of bytes written=162
-		HDFS: Number of read operations=36
+		HDFS: Number of read operations=27
 		HDFS: Number of large read operations=0
 		HDFS: Number of write operations=6
+		S3N: Number of bytes read=789
+		S3N: Number of bytes written=0
+		S3N: Number of read operations=0
+		S3N: Number of large read operations=0
+		S3N: Number of write operations=0
 	Job Counters 
 		Killed map tasks=1
 		Launched map tasks=9
 		Launched reduce tasks=3
-		Data-local map tasks=8
-		Rack-local map tasks=1
-		Total time spent by all maps in occupied slots (ms)=3691296
-		Total time spent by all reduces in occupied slots (ms)=1287456
-		Total time spent by all map tasks (ms)=76902
-		Total time spent by all reduce tasks (ms)=13411
-		Total vcore-milliseconds taken by all map tasks=76902
-		Total vcore-milliseconds taken by all reduce tasks=13411
-		Total megabyte-milliseconds taken by all map tasks=118121472
-		Total megabyte-milliseconds taken by all reduce tasks=41198592
+		Data-local map tasks=9
+		Total time spent by all maps in occupied slots (ms)=7104528
+		Total time spent by all reduces in occupied slots (ms)=2073696
+		Total time spent by all map tasks (ms)=148011
+		Total time spent by all reduce tasks (ms)=21601
+		Total vcore-milliseconds taken by all map tasks=148011
+		Total vcore-milliseconds taken by all reduce tasks=21601
+		Total megabyte-milliseconds taken by all map tasks=227344896
+		Total megabyte-milliseconds taken by all reduce tasks=66358272
 	Map-Reduce Framework
 		Map input records=13
 		Map output records=13
 		Map output bytes=445
 		Map output materialized bytes=772
-		Input split bytes=1197
+		Input split bytes=954
 		Combine input records=0
 		Combine output records=0
 		Reduce input groups=1
@@ -1552,11 +1574,11 @@ packageJobJar: [p5_s2_mapper.py, p5_s2_reducer.py] [/usr/lib/hadoop/hadoop-strea
 		Shuffled Maps =27
 		Failed Shuffles=0
 		Merged Map outputs=27
-		GC time elapsed (ms)=1847
-		CPU time spent (ms)=8470
-		Physical memory (bytes) snapshot=4278796288
-		Virtual memory (bytes) snapshot=43344031744
-		Total committed heap usage (bytes)=3996647424
+		GC time elapsed (ms)=4859
+		CPU time spent (ms)=53730
+		Physical memory (bytes) snapshot=4975263744
+		Virtual memory (bytes) snapshot=43609673728
+		Total committed heap usage (bytes)=4563927040
 	Shuffle Errors
 		BAD_ID=0
 		CONNECTION=0
@@ -1568,7 +1590,7 @@ packageJobJar: [p5_s2_mapper.py, p5_s2_reducer.py] [/usr/lib/hadoop/hadoop-strea
 		Bytes Read=789
 	File Output Format Counters 
 		Bytes Written=162
-18/02/16 07:35:45 INFO streaming.StreamJob: Output directory: hdfs:///usr/hadoop/p5_s2
+18/02/17 02:41:29 INFO streaming.StreamJob: Output directory: hdfs:///usr/hadoop/p5_s2
 ```
 
 This job had **9** splits with **9** mappers and **3** reducers.
@@ -1576,15 +1598,15 @@ The results:
 ```
 $ hadoop fs -ls hdfs:///usr/hadoop/p5_s2
 Found 4 items
--rw-r--r--   1 hadoop hadoop          0 2018-02-16 07:35 hdfs:///usr/hadoop/p5_s2/_SUCCESS
--rw-r--r--   1 hadoop hadoop          0 2018-02-16 07:35 hdfs:///usr/hadoop/p5_s2/part-00000
--rw-r--r--   1 hadoop hadoop          0 2018-02-16 07:35 hdfs:///usr/hadoop/p5_s2/part-00001
--rw-r--r--   1 hadoop hadoop        162 2018-02-16 07:35 hdfs:///usr/hadoop/p5_s2/part-00002
+-rw-r--r--   1 hadoop hadoop          0 2018-02-17 02:41 hdfs:///usr/hadoop/p5_s2/_SUCCESS
+-rw-r--r--   1 hadoop hadoop          0 2018-02-17 02:41 hdfs:///usr/hadoop/p5_s2/part-00000
+-rw-r--r--   1 hadoop hadoop          0 2018-02-17 02:41 hdfs:///usr/hadoop/p5_s2/part-00001
+-rw-r--r--   1 hadoop hadoop        162 2018-02-17 02:41 hdfs:///usr/hadoop/p5_s2/part-00002
 $ hadoop fs -cat hdfs:///usr/hadoop/p5_s2/*
-http://example.com/?url=11	18750
+http://example.com/?url=10	18750
 http://example.com/?url=12	18750
-http://example.com/?url=1	18750
 http://example.com/?url=2	18750
+http://example.com/?url=0	18750
 http://example.com/?url=9	18750
 ```
-The exact URLs returned do not match the results from our single node, but since all of the URLs are tied and our implementation does not implement a stable sort algorithm, this is not unexpected nor does it prove the run is incorrect.
+The exact URLs returned do not match the results from our single node, but since all of the URLs are tied and our implementation does not implement a stable sort algorithm, this is not unexpected nor does it prove the run is flawed.

@@ -8,6 +8,12 @@ count_dict = {}
 TOP_N = 5
 
 def add_to_dict(current_dict, url, count):
+    """
+    Update an return a dictionary with the highest-count URLs
+    :param current_dict: A dictionary that holds the current state of the highest-count URLs
+    :param url: A candidate URl that could be included in the top count
+    :param count: The count value for the URL
+    """
     # If we don't yet have the TOP_N items, add the url and count to the dict
     if len(current_dict) < TOP_N:
         current_dict[url] = count
