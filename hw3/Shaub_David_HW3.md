@@ -13,6 +13,9 @@ Our cluster has one master node and two slave nodes:
 
 ![cluster](cluster.png)
 
+![instance view from a second launched cluster](cluster_view.png)
+Note that the second screenshot showing the individual instances is from a second cluster that was launched to rerun several of the map reduce jobs.
+
 We connect to the master node:
 ```
 $ ssh -i ~/ohio.pem hadoop@ec2-18-221-60-255.us-east-2.compute.amazonaws.com
@@ -998,7 +1001,7 @@ if len(user_set) > 0:
     print("{}\t{}".format(current_url_hour, len(user_set)))
 ```
 
-The change here is we now form a key for the mapper that is a combination of the url and hour so that these go to the same reducer.
+The change here from Problme 3 is we now form a key for the mapper that is a combination of the url and hour so that these go to the same reducer.
 
 We run our map-reduce program on a single node:
 ```
