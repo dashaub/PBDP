@@ -1,0 +1,9 @@
+{"namespace": "logs.avro",
+ "type": "record",
+ "name": "visits",
+ "fields": [
+     {"name": "timestamp", "type": "string"},
+     {"name": "url",  "type": "string"},
+     {"name": "user", "type": "string"}
+ ]
+}
