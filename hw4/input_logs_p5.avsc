@@ -1,0 +1,10 @@
+{"namespace": "logs_p5.avro",
+ "type": "record",
+ "name": "visits",
+ "fields": [
+     {"name": "uuid", "type": "string"},
+     {"name": "timestamp", "type": "string"},
+     {"name": "url",  "type": "string"},
+     {"name": "user", "type": "string"}
+ ]
+}
