@@ -88,3 +88,19 @@ Objavro.schema?{"type": "record", "namespace": "logs.avro", "name": "visits", "f
                                                                                                                                                                                                 User_3(2018-02-13T00:01:36Z2http://example.com/?url=0
                                          User_402018-02-13T00:01:55.200Z2http://example.com/?url=0
 ```
+
+## Problem 2
+
+Only very minor changes were required from our previous streaming MR jobs that used input data in text format. The reducers do not need to change at all since they receive identical output data from the mapper and are not inpacted by the input data format on disk. The mappers can structurally remain the same, but we make a few tiny modifications to handle the avro input: instead of manually splitting the input line on the table character and producing an array, we load the JSON line into a python dict and can then easily access the fields we are interested in.
+
+
+## Problem 3
+
+## Problem 4
+
+The parquet format is efficient for job that do not require acces to all columns since only data from the columns that are required are read. In our problem here, we do not need any data from the user columns, so this is not read. In general this format would be very efficient for scenarios where are data has a large number of columns but we only need to read a few columns since we we only need to read a tiny fractional amount of the data compared to a row-store format.
+
+## Problem 5
+
+Our avro schema now includes a field for `uuid`. This is of type string and our program will generate this data by MD5 hashing the input line so that if we have two identical inputs we will generate a collision.
+
