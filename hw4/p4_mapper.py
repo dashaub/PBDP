@@ -3,14 +3,16 @@
 Mapper that emits a tuple for only a matching URL and date. The date should be YYYY-MM-DD.
 """
 import sys
+from json import loads
 
 filter_url = sys.argv[1]
 filter_date = sys.argv[2]
 
 for line in sys.stdin:
-    current_line = line.strip().split('\t')
-    if current_line is not None and len(current_line) == 3:
-        timestamp, url, _ = current_line
+    current_line = loads(line)
+    if current_line is not None:
+        timestamp = current_line['timestamp']
+        url = current_line['url']
         # We might emit if the URL matches our filter URL
         if filter_url == url:
             # Extract the day

@@ -11,7 +11,7 @@ schema = avro.schema.parse(open('input_logs_p5.avsc', 'rb').read())
 # Intentionallly read each file twice so we have duplicates
 num_files = 4
 input_files = ['logs_{}.txt'.format(i % num_files) for i in range(num_files * 2)]
-with DataFileWriter(open('logs.avro', 'wb'), DatumWriter(), schema) as writer:
+with DataFileWriter(open('logs_p5.avro', 'wb'), DatumWriter(), schema) as writer:
     # Process each input file
     for input_file in input_files:
         # Open each input file
@@ -23,6 +23,6 @@ with DataFileWriter(open('logs.avro', 'wb'), DatumWriter(), schema) as writer:
                 if len(current_line) == 3:
                     timestamp, url, user = current_line
                     # Generate uuid for the line
-                    uuid = hashlib.md5sum(current_line).hexdigest()
+                    uuid = hashlib.md5(str(current_line)).hexdigest()
                     # Write to avro
                     writer.append({'uuid': uuid, 'timestamp': timestamp, 'url': url, 'user': user})
