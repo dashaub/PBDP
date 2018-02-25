@@ -91,7 +91,7 @@ Objavro.schema?{"type": "record", "namespace": "logs.avro", "name": "visits", "f
 
 ## Problem 2
 
-Only very minor changes were required from our previous streaming MR jobs that used input data in text format. The reducers do not need to change at all since they receive identical output data from the mapper and are not inpacted by the input data format on disk. The mappers can structurally remain the same, but we make a few tiny modifications to handle the avro input: instead of manually splitting the input line on the table character and producing an array, we load the JSON line into a python dict and can then easily access the fields we are interested in.
+Only very minor changes were required from our previous streaming MR jobs that used input data in text format. The reducers do not need to change at all since they receive identical output data from the mapper and are not inpacted by the input data format on disk. The mappers can structurally remain the same, but we make a few tiny modifications to handle the avro input: instead of manually splitting the input line on the tab character and producing an array, we load the JSON line into a python dictionary and can then easily access the fields we are interested in.
 
 Place the files in HDFS:
 ```
@@ -240,7 +240,7 @@ The output matches our earlier result:
 ```
 $ hadoop fs -cat /p2_q1/*
 13
-``
+```
 
 **Q2**:
 
@@ -393,7 +393,7 @@ http://example.com/?url=10	5
 http://example.com/?url=3	5
 http://example.com/?url=6	5
 http://example.com/?url=9	5
-``
+```
 
 **Q3**:
 
@@ -674,11 +674,11 @@ http://example.com/?url=9 : User_1	3750
 http://example.com/?url=9 : User_2	3750
 http://example.com/?url=9 : User_3	3750
 http://example.com/?url=9 : User_4	3750
-``
+```
 
 ## Problem 3
 
-To convert our avro data to parquet, we will use Hive. First we must enter the Hive shell and create an external table that points to our avro data and defines a schema:
+To convert our avro data to parquet, we will use Hive. First we must enter the Hive shell and create an external table that points to our avro data and define a schema:
 ```
 $ hadoop fs -copyFromLocal input_logs.avsc /
 $ hive
@@ -693,7 +693,7 @@ LOCATION '/avro'
 TBLPROPERTIES ('avro.schema.url'='/input_logs.avsc');
 ```
 
-We run a few queries to verify that all data was loaded correctly:
+We run a few queries to verify that all data was loaded correctly--both some selected records and the total number of records look correct:
 ```
 hive> select * from avro_table limit 10;
 OK
@@ -753,7 +753,7 @@ VERTICES: 01/01  [==========================>>] 100%  ELAPSED TIME: 7.03 s
 Loading data to table default.parquet_table
 OK
 Time taken: 17.308 seconds
-``
+```
 
 And we verify that the parquet data appears correctly--both in the table and in HDFS:
 ```
@@ -788,7 +788,7 @@ We notice that not only did our Hive queries complete far quicker, but the data 
 
 ## Problem 4
 
-The parquet format is efficient for job that do not require acces to all columns since only data from the columns that are required are read. In our problem here, we do not need any data from the user columns, so this is not read. Moreover, since compression is done on a per-column basis, we can expect excellent compression ratios and smaller data reads. In general this format would be very efficient for scenarios where our data has a large number of columns but we only need to read a few columns since we we only need to read a tiny fractional amount of the data compared to a row-store format.
+The parquet format is efficient for jobs that do not require acces to all columns since only data from the columns that are required are read. In our problem here, we do not need any data from the user columns, so this is not read. Moreover, since compression is done on a per-column basis, we can expect excellent compression ratios and smaller data reads. In general this format would be very efficient for scenarios where our data has a large number of columns but we only need to read a few columns since we we only need to read a tiny fractional amount of the data compared to a row-store format.
 
 Our mapper `p4_mapper.py`:
 ```
@@ -805,7 +805,7 @@ filter_date = sys.argv[2]
 for line in sys.stdin:
     current_line = loads(line)
     if current_line is not None:
-        timestamp = current_line['timestamp']
+        timestamp = current_line['ts']
         url = current_line['url']
         # We might emit if the URL matches our filter URL
         if filter_url == url:
@@ -844,102 +844,190 @@ if count > 0:
     print('{}\t{}'.format(current_item, current_count))
 ```
 
-Since we must supply a URL and date for filtering, we will use `http://example.com/?url=0` and `2018-02-13`, respectively. We launch the MR job including hadoop2-iow-lib-1.20.jar built from https://github.com/whale2/iow-hadoop-streaming and parquet-hadoop-bundle-1.8.1.jar from http://central.maven.org/maven2/org/apache/parquet/parquet-hadoop-bundle/1.8.1/parquet-hadoop-bundle-1.8.1.jar and are sure to include to pas our filter arguments to the mapper:
+Since we must supply a URL and date for filtering, we will use `http://example.com/?url=0` and `2018-02-13`, respectively. We launch the MR job including `hadoop2-iow-lib-1.20.jar` built from <https://github.com/whale2/iow-hadoop-streaming> and `parquet-hadoop-bundle-1.8.1.jar` from <http://central.maven.org/maven2/org/apache/parquet/parquet-hadoop-bundle/1.8.1/parquet-hadoop-bundle-1.8.1.jar> and are sure to pass our filter arguments to the mapper:
 ```
-$ hadoop jar /usr/lib/hadoop-mapreduce/hadoop-streaming.jar -libjars hadoop2-iow-lib-1.20.jar,parquet-hadoop-bundle-1.8.1.jar -D mapredduce.job.name="p4" -D parquet.read.support.class=net.iponweb.hadoop.streaming.parquet.GroupReadSupport -D stream.reduce.output=text -files p4_mapper.py,p4_reducer.py -inputformat net.iponweb.hadoop.streaming.parquet.ParquetAsJsonInputFormat -input /parquet_data -output /p4_output -mapper 'p4_mapper.py http://example.com/?url=0 2018-02-13' -reducer p4_reducer.py
-packageJobJar: [] [/usr/lib/hadoop/hadoop-streaming-2.7.3-amzn-6.jar] /tmp/streamjob6799359616360321424.jar tmpDir=null
-18/02/24 23:05:27 INFO impl.TimelineClientImpl: Timeline service address: http://ip-172-31-13-111.us-east-2.compute.internal:8188/ws/v1/timeline/
-18/02/24 23:05:28 INFO client.RMProxy: Connecting to ResourceManager at ip-172-31-13-111.us-east-2.compute.internal/172.31.13.111:8032
-18/02/24 23:05:28 INFO impl.TimelineClientImpl: Timeline service address: http://ip-172-31-13-111.us-east-2.compute.internal:8188/ws/v1/timeline/
-18/02/24 23:05:28 INFO client.RMProxy: Connecting to ResourceManager at ip-172-31-13-111.us-east-2.compute.internal/172.31.13.111:8032
-18/02/24 23:05:29 INFO input.FileInputFormat: Total input paths to process : 1
-18/02/24 23:05:29 INFO mapreduce.JobSubmitter: number of splits:1
-18/02/24 23:05:29 INFO mapreduce.JobSubmitter: Submitting tokens for job: job_1519500853873_0022
-18/02/24 23:05:29 INFO impl.YarnClientImpl: Submitted application application_1519500853873_0022
-18/02/24 23:05:29 INFO mapreduce.Job: The url to track the job: http://ip-172-31-13-111.us-east-2.compute.internal:20888/proxy/application_1519500853873_0022/
-18/02/24 23:05:29 INFO mapreduce.Job: Running job: job_1519500853873_0022
-18/02/24 23:05:36 INFO mapreduce.Job: Job job_1519500853873_0022 running in uber mode : false
-18/02/24 23:05:36 INFO mapreduce.Job:  map 0% reduce 0%
-18/02/24 23:05:41 INFO mapreduce.Job: Task Id : attempt_1519500853873_0022_m_000000_0, Status : FAILED
-Error: java.lang.RuntimeException: PipeMapRed.waitOutputThreads(): subprocess failed with code 1
-	at org.apache.hadoop.streaming.PipeMapRed.waitOutputThreads(PipeMapRed.java:322)
-	at org.apache.hadoop.streaming.PipeMapRed.mapRedFinished(PipeMapRed.java:535)
-	at org.apache.hadoop.streaming.PipeMapper.close(PipeMapper.java:130)
-	at org.apache.hadoop.mapred.MapRunner.run(MapRunner.java:61)
-	at org.apache.hadoop.streaming.PipeMapRunner.run(PipeMapRunner.java:34)
-	at org.apache.hadoop.mapred.MapTask.runOldMapper(MapTask.java:455)
-	at org.apache.hadoop.mapred.MapTask.run(MapTask.java:344)
-	at org.apache.hadoop.mapred.YarnChild$2.run(YarnChild.java:164)
-	at java.security.AccessController.doPrivileged(Native Method)
-	at javax.security.auth.Subject.doAs(Subject.java:422)
-	at org.apache.hadoop.security.UserGroupInformation.doAs(UserGroupInformation.java:1698)
-	at org.apache.hadoop.mapred.YarnChild.main(YarnChild.java:158)
-
-18/02/24 23:05:48 INFO mapreduce.Job:  map 100% reduce 0%
-18/02/24 23:05:48 INFO mapreduce.Job: Task Id : attempt_1519500853873_0022_m_000000_1, Status : FAILED
-Error: java.lang.RuntimeException: PipeMapRed.waitOutputThreads(): subprocess failed with code 1
-	at org.apache.hadoop.streaming.PipeMapRed.waitOutputThreads(PipeMapRed.java:322)
-	at org.apache.hadoop.streaming.PipeMapRed.mapRedFinished(PipeMapRed.java:535)
-	at org.apache.hadoop.streaming.PipeMapper.close(PipeMapper.java:130)
-	at org.apache.hadoop.mapred.MapRunner.run(MapRunner.java:61)
-	at org.apache.hadoop.streaming.PipeMapRunner.run(PipeMapRunner.java:34)
-	at org.apache.hadoop.mapred.MapTask.runOldMapper(MapTask.java:455)
-	at org.apache.hadoop.mapred.MapTask.run(MapTask.java:344)
-	at org.apache.hadoop.mapred.YarnChild$2.run(YarnChild.java:164)
-	at java.security.AccessController.doPrivileged(Native Method)
-	at javax.security.auth.Subject.doAs(Subject.java:422)
-	at org.apache.hadoop.security.UserGroupInformation.doAs(UserGroupInformation.java:1698)
-	at org.apache.hadoop.mapred.YarnChild.main(YarnChild.java:158)
-
-Container killed by the ApplicationMaster.
-Container killed on request. Exit code is 143
-Container exited with a non-zero exit code 143
-
-18/02/24 23:05:49 INFO mapreduce.Job:  map 0% reduce 0%
-18/02/24 23:05:53 INFO mapreduce.Job: Task Id : attempt_1519500853873_0022_m_000000_2, Status : FAILED
-Error: java.lang.RuntimeException: PipeMapRed.waitOutputThreads(): subprocess failed with code 1
-	at org.apache.hadoop.streaming.PipeMapRed.waitOutputThreads(PipeMapRed.java:322)
-	at org.apache.hadoop.streaming.PipeMapRed.mapRedFinished(PipeMapRed.java:535)
-	at org.apache.hadoop.streaming.PipeMapper.close(PipeMapper.java:130)
-	at org.apache.hadoop.mapred.MapRunner.run(MapRunner.java:61)
-	at org.apache.hadoop.streaming.PipeMapRunner.run(PipeMapRunner.java:34)
-	at org.apache.hadoop.mapred.MapTask.runOldMapper(MapTask.java:455)
-	at org.apache.hadoop.mapred.MapTask.run(MapTask.java:344)
-	at org.apache.hadoop.mapred.YarnChild$2.run(YarnChild.java:164)
-	at java.security.AccessController.doPrivileged(Native Method)
-	at javax.security.auth.Subject.doAs(Subject.java:422)
-	at org.apache.hadoop.security.UserGroupInformation.doAs(UserGroupInformation.java:1698)
-	at org.apache.hadoop.mapred.YarnChild.main(YarnChild.java:158)
-
-Container killed by the ApplicationMaster.
-Container killed on request. Exit code is 143
-Container exited with a non-zero exit code 143
-
-18/02/24 23:05:59 INFO mapreduce.Job:  map 100% reduce 100%
-18/02/24 23:05:59 INFO mapreduce.Job: Job job_1519500853873_0022 failed with state FAILED due to: Task failed task_1519500853873_0022_m_000000
-Job failed as tasks failed. failedMaps:1 failedReduces:0
-
-18/02/24 23:06:00 INFO mapreduce.Job: Counters: 13
+$ hadoop jar /usr/lib/hadoop-mapreduce/hadoop-streaming.jar -libjars hadoop2-iow-lib-1.20.jar,parquet-hadoop-bundle-1.8.1.jar -D mapredduce.job.name="p4" -D parquet.read.support.class=net.iponweb.hadoop.streaming.parquet.GroupReadSupport -D mapreduce.output.fileoutputformat.compress=false -D stream.reduce.output=text -files p4_mapper.py,p4_reducer.py -inputformat net.iponweb.hadoop.streaming.parquet.ParquetAsJsonInputFormat -input /parquet_data -output /p4_output -mapper 'p4_mapper.py http://example.com/?url=0 2018-02-13' -reducer p4_reducer.py
+packageJobJar: [] [/usr/lib/hadoop/hadoop-streaming-2.7.3-amzn-6.jar] /tmp/streamjob5871587703194084978.jar tmpDir=null
+18/02/25 01:20:45 INFO impl.TimelineClientImpl: Timeline service address: http://ip-172-31-13-111.us-east-2.compute.internal:8188/ws/v1/timeline/
+18/02/25 01:20:45 INFO client.RMProxy: Connecting to ResourceManager at ip-172-31-13-111.us-east-2.compute.internal/172.31.13.111:8032
+18/02/25 01:20:46 INFO impl.TimelineClientImpl: Timeline service address: http://ip-172-31-13-111.us-east-2.compute.internal:8188/ws/v1/timeline/
+18/02/25 01:20:46 INFO client.RMProxy: Connecting to ResourceManager at ip-172-31-13-111.us-east-2.compute.internal/172.31.13.111:8032
+18/02/25 01:20:46 INFO input.FileInputFormat: Total input paths to process : 1
+18/02/25 01:20:46 INFO mapreduce.JobSubmitter: number of splits:1
+18/02/25 01:20:47 INFO mapreduce.JobSubmitter: Submitting tokens for job: job_1519500853873_0032
+18/02/25 01:20:47 INFO impl.YarnClientImpl: Submitted application application_1519500853873_0032
+18/02/25 01:20:47 INFO mapreduce.Job: The url to track the job: http://ip-172-31-13-111.us-east-2.compute.internal:20888/proxy/application_1519500853873_0032/
+18/02/25 01:20:47 INFO mapreduce.Job: Running job: job_1519500853873_0032
+18/02/25 01:20:54 INFO mapreduce.Job: Job job_1519500853873_0032 running in uber mode : false
+18/02/25 01:20:54 INFO mapreduce.Job:  map 0% reduce 0%
+18/02/25 01:21:03 INFO mapreduce.Job:  map 100% reduce 0%
+18/02/25 01:21:09 INFO mapreduce.Job:  map 100% reduce 33%
+18/02/25 01:21:11 INFO mapreduce.Job:  map 100% reduce 67%
+18/02/25 01:21:12 INFO mapreduce.Job:  map 100% reduce 100%
+18/02/25 01:21:12 INFO mapreduce.Job: Job job_1519500853873_0032 completed successfully
+18/02/25 01:21:12 INFO mapreduce.Job: Counters: 53
+	File System Counters
+		FILE: Number of bytes read=6278
+		FILE: Number of bytes written=542215
+		FILE: Number of read operations=0
+		FILE: Number of large read operations=0
+		FILE: Number of write operations=0
+		HDFS: Number of bytes read=544015
+		HDFS: Number of bytes written=40
+		HDFS: Number of read operations=14
+		HDFS: Number of large read operations=0
+		HDFS: Number of write operations=6
 	Job Counters 
-		Failed map tasks=4
-		Killed reduce tasks=3
-		Launched map tasks=4
-		Other local map tasks=3
+		Killed reduce tasks=1
+		Launched map tasks=1
+		Launched reduce tasks=3
 		Data-local map tasks=1
-		Total time spent by all maps in occupied slots (ms)=801504
-		Total time spent by all reduces in occupied slots (ms)=0
-		Total time spent by all map tasks (ms)=16698
-		Total time spent by all reduce tasks (ms)=0
-		Total vcore-milliseconds taken by all map tasks=16698
-		Total vcore-milliseconds taken by all reduce tasks=0
-		Total megabyte-milliseconds taken by all map tasks=25648128
-		Total megabyte-milliseconds taken by all reduce tasks=0
-18/02/24 23:06:00 ERROR streaming.StreamJob: Job not successful!
-Streaming Command Failed!
-Feb 24, 2018 11:05:29 PM INFO: org.apache.parquet.hadoop.ParquetInputFormat: Total input paths to process : 1
+		Total time spent by all maps in occupied slots (ms)=306528
+		Total time spent by all reduces in occupied slots (ms)=1472736
+		Total time spent by all map tasks (ms)=6386
+		Total time spent by all reduce tasks (ms)=15341
+		Total vcore-milliseconds taken by all map tasks=6386
+		Total vcore-milliseconds taken by all reduce tasks=15341
+		Total megabyte-milliseconds taken by all map tasks=9808896
+		Total megabyte-milliseconds taken by all reduce tasks=47127552
+	Map-Reduce Framework
+		Map input records=243750
+		Map output records=18750
+		Map output bytes=93750
+		Map output materialized bytes=6266
+		Input split bytes=201
+		Combine input records=0
+		Combine output records=0
+		Reduce input groups=5
+		Reduce shuffle bytes=6266
+		Reduce input records=18750
+		Reduce output records=5
+		Spilled Records=37500
+		Shuffled Maps =3
+		Failed Shuffles=0
+		Merged Map outputs=3
+		GC time elapsed (ms)=500
+		CPU time spent (ms)=6470
+		Physical memory (bytes) snapshot=1253490688
+		Virtual memory (bytes) snapshot=17138405376
+		Total committed heap usage (bytes)=1108344832
+	Shuffle Errors
+		BAD_ID=0
+		CONNECTION=0
+		IO_ERROR=0
+		WRONG_LENGTH=0
+		WRONG_MAP=0
+		WRONG_REDUCE=0
+	File Input Format Counters 
+		Bytes Read=0
+	File Output Format Counters 
+		Bytes Written=40
+	parquet
+		bytesread=543421
+		bytestotal=543421
+		timeread=27
+18/02/25 01:21:12 INFO streaming.StreamJob: Output directory: /p4_output
+Feb 25, 2018 1:20:46 AM INFO: org.apache.parquet.hadoop.ParquetInputFormat: Total input paths to process : 1
+$ hadoop fs -cat /p4_output/*
+02	3750
+00	3750
+03	3750
+01	3750
+04	3750
+```
+We have the histogram as expected. We launch one more with a different URL:
+```
+$ hadoop jar /usr/lib/hadoop-mapreduce/hadoop-streaming.jar -libjars hadoop2-iow-lib-1.20.jar,parquet-hadoop-bundle-1.8.1.jar -D mapredduce.job.name="p4" -D parquet.read.support.class=net.iponweb.hadoop.streaming.parquet.GroupReadSupport -D mapreduce.output.fileoutputformat.compress=false -D stream.reduce.output=text -files p4_mapper.py,p4_reducer.py -inputformat net.iponweb.hadoop.streaming.parquet.ParquetAsJsonInputFormat -input /parquet_data -output /p4_output2 -mapper 'p4_mapper.py http://example.com/?url=11 2018-02-13' -reducer p4_reducer.py
+packageJobJar: [] [/usr/lib/hadoop/hadoop-streaming-2.7.3-amzn-6.jar] /tmp/streamjob251467572549065144.jar tmpDir=null
+18/02/25 01:31:05 INFO impl.TimelineClientImpl: Timeline service address: http://ip-172-31-13-111.us-east-2.compute.internal:8188/ws/v1/timeline/
+18/02/25 01:31:05 INFO client.RMProxy: Connecting to ResourceManager at ip-172-31-13-111.us-east-2.compute.internal/172.31.13.111:8032
+18/02/25 01:31:05 INFO impl.TimelineClientImpl: Timeline service address: http://ip-172-31-13-111.us-east-2.compute.internal:8188/ws/v1/timeline/
+18/02/25 01:31:05 INFO client.RMProxy: Connecting to ResourceManager at ip-172-31-13-111.us-east-2.compute.internal/172.31.13.111:8032
+18/02/25 01:31:06 INFO input.FileInputFormat: Total input paths to process : 1
+18/02/25 01:31:06 INFO mapreduce.JobSubmitter: number of splits:1
+18/02/25 01:31:06 INFO mapreduce.JobSubmitter: Submitting tokens for job: job_1519500853873_0033
+18/02/25 01:31:06 INFO impl.YarnClientImpl: Submitted application application_1519500853873_0033
+18/02/25 01:31:06 INFO mapreduce.Job: The url to track the job: http://ip-172-31-13-111.us-east-2.compute.internal:20888/proxy/application_1519500853873_0033/
+18/02/25 01:31:06 INFO mapreduce.Job: Running job: job_1519500853873_0033
+18/02/25 01:31:14 INFO mapreduce.Job: Job job_1519500853873_0033 running in uber mode : false
+18/02/25 01:31:14 INFO mapreduce.Job:  map 0% reduce 0%
+18/02/25 01:31:23 INFO mapreduce.Job:  map 100% reduce 0%
+18/02/25 01:31:29 INFO mapreduce.Job:  map 100% reduce 33%
+18/02/25 01:31:31 INFO mapreduce.Job:  map 100% reduce 67%
+18/02/25 01:31:32 INFO mapreduce.Job:  map 100% reduce 100%
+18/02/25 01:31:32 INFO mapreduce.Job: Job job_1519500853873_0033 completed successfully
+18/02/25 01:31:32 INFO mapreduce.Job: Counters: 53
+	File System Counters
+		FILE: Number of bytes read=6278
+		FILE: Number of bytes written=542219
+		FILE: Number of read operations=0
+		FILE: Number of large read operations=0
+		FILE: Number of write operations=0
+		HDFS: Number of bytes read=544015
+		HDFS: Number of bytes written=40
+		HDFS: Number of read operations=14
+		HDFS: Number of large read operations=0
+		HDFS: Number of write operations=6
+	Job Counters 
+		Killed reduce tasks=1
+		Launched map tasks=1
+		Launched reduce tasks=3
+		Data-local map tasks=1
+		Total time spent by all maps in occupied slots (ms)=321936
+		Total time spent by all reduces in occupied slots (ms)=1432128
+		Total time spent by all map tasks (ms)=6707
+		Total time spent by all reduce tasks (ms)=14918
+		Total vcore-milliseconds taken by all map tasks=6707
+		Total vcore-milliseconds taken by all reduce tasks=14918
+		Total megabyte-milliseconds taken by all map tasks=10301952
+		Total megabyte-milliseconds taken by all reduce tasks=45828096
+	Map-Reduce Framework
+		Map input records=243750
+		Map output records=18750
+		Map output bytes=93750
+		Map output materialized bytes=6266
+		Input split bytes=201
+		Combine input records=0
+		Combine output records=0
+		Reduce input groups=5
+		Reduce shuffle bytes=6266
+		Reduce input records=18750
+		Reduce output records=5
+		Spilled Records=37500
+		Shuffled Maps =3
+		Failed Shuffles=0
+		Merged Map outputs=3
+		GC time elapsed (ms)=413
+		CPU time spent (ms)=7490
+		Physical memory (bytes) snapshot=1307058176
+		Virtual memory (bytes) snapshot=17160716288
+		Total committed heap usage (bytes)=1170210816
+	Shuffle Errors
+		BAD_ID=0
+		CONNECTION=0
+		IO_ERROR=0
+		WRONG_LENGTH=0
+		WRONG_MAP=0
+		WRONG_REDUCE=0
+	File Input Format Counters 
+		Bytes Read=0
+	File Output Format Counters 
+		Bytes Written=40
+	parquet
+		bytesread=543421
+		bytestotal=543421
+		timeread=32
+18/02/25 01:31:32 INFO streaming.StreamJob: Output directory: /p4_output2
+Feb 25, 2018 1:31:06 AM INFO: org.apache.parquet.hadoop.ParquetInputFormat: Total input paths to process : 1
+$ hadoop fs -cat /p4_output2/*
+02	3750
+00	3750
+03	3750
+01	3750
+04	3750
 ```
 
-We get a YARN error that appears difficult to debug. So we launch it again using our avro input:
+We can compare these results to a job that uses avro input:
 ```
 $ hadoop jar /usr/lib/hadoop-mapreduce/hadoop-streaming.jar -libjars avro-mapred-1.8.2.jar -D mapredduce.job.name="p4" -files p4_mapper.py,p4_reducer.py -mapper 'p4_mapper.py http://example.com/?url=0 2018-02-13' -reducer p4_reducer.py -input /avro -output /p4_from_avro -inputformat org.apache.avro.mapred.AvroAsTextInputFormat
 packageJobJar: [] [/usr/lib/hadoop/hadoop-streaming-2.7.3-amzn-6.jar] /tmp/streamjob3939476190954594775.jar tmpDir=null
@@ -1029,7 +1117,7 @@ $ hadoop fs -cat /p4_from_avro/*
 04	3750
 ```
 
-This appears to work. So we'll launch one more with a different url/date filter:
+This appears to work and produce the hourly histogram that we desire. So we'll launch one more with a different url/date filter:
 ```
 $ hadoop jar /usr/lib/hadoop-mapreduce/hadoop-streaming.jar -libjars avro-mapred-1.8.2.jar -D mapredduce.job.name="p4" -files p4_mapper.py,p4_reducer.py -mapper 'p4_mapper.py http://example.com/?url=11 2018-02-13' -reducer p4_reducer.py -input /avro -output /p4_from_avro2 -inputformat org.apache.avro.mapred.AvroAsTextInputFormat
 packageJobJar: [] [/usr/lib/hadoop/hadoop-streaming-2.7.3-amzn-6.jar] /tmp/streamjob5311059961523202693.jar tmpDir=null
@@ -1136,7 +1224,7 @@ Our avro schema now includes a field for `uuid`. This is of type string and our 
 }
 ```
 
-To duplicate each record, we read in each file twice in  `p5_avrowriter.py`:
+To duplicate each record, we read in each file twice in  `p5_avrowriter.py`--see line 13:
 ```
 """Load the text logfiles and save them in a single avro file"""
 import avro.schema
@@ -1325,7 +1413,7 @@ packageJobJar: [] [/usr/lib/hadoop/hadoop-streaming-2.7.3-amzn-6.jar] /tmp/strea
 18/02/25 00:01:08 INFO streaming.StreamJob: Output directory: /p5
 ```
 
-From the results we see that we get the same resluts as before even though we had duplicates in our input data. This is because we use the UUID to protect us from duplicates.
+From the results we see that we get the same results as before even though we had duplicates in our input data. This is because we use the UUID to protect us from duplicates.
 ```
 $ hadoop fs -cat /p5/* | sort
 http://example.com/?url=0 : User_0	3750

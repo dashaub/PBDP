@@ -11,7 +11,7 @@ filter_date = sys.argv[2]
 for line in sys.stdin:
     current_line = loads(line)
     if current_line is not None:
-        timestamp = current_line['timestamp']
+        timestamp = current_line['ts']
         url = current_line['url']
         # We might emit if the URL matches our filter URL
         if filter_url == url:
