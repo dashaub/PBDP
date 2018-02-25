@@ -102,8 +102,54 @@ Found 1 items
 -rw-r--r--   1 hadoop hadoop   14003587 2018-02-24 19:47 /avro/logs.avro
 ```
 
-Launch Q1:
+**Q1**
 
+The mapper `p2_q1_mapper.py`:
+```
+#!/usr/bin/python
+
+import sys
+from json import loads
+
+for line in sys.stdin:
+    current_line = loads(line)
+    if current_line is not None:
+        url = current_line['url']
+        # Send all URLs to the same reducer. Since our data is not too large, we can get away
+        # with this. If we really had "Big Data" and wished to reduce the load better, we should
+        # utilize a combiner here so far fewer duplicate rows of input must be processed by the reducer.
+        # Or we could implement a two-stage MR job as mentioned in the reducer comments.
+        print("1\t{}".format(url))
+```
+
+The reducer `p2_q1_reducer.py`:
+```
+#!/usr/bin/python
+
+import sys
+
+current_user = None
+count = 0
+
+# For our data we do not have that many distinct users. If the cardinality of this was very large,
+# this set would not be safe for memory. The solution is to use a two stage MR job.
+all_users = set()
+
+for line in sys.stdin:
+    current_line = line.strip().split('\t')
+    if len(current_line) == 2:
+        user = current_line[1]
+        # If we have very high cardinality for number of users, this implementation is not memory safe.
+        # For our dataset this is not a problem, but if it were we could do a two-stage MR job
+        # Where the first job is a "word count" type job and the second stage then returns
+        # a count for the total number of records.
+        all_users.add(user)
+
+print(len(all_users))
+
+```
+
+We launch the job:
 ```
 $ hadoop jar /usr/lib/hadoop-mapreduce/hadoop-streaming.jar -libjars avro-mapred-1.8.2.jar -D mapredduce.job.name="p2_q1" -files p2_q1_mapper.py,p2_q1_reducer.py -mapper p2_q1_mapper.py -reducer p2_q1_reducer.py -input /avro -output /p2_q1 -inputformat org.apache.avro.mapred.AvroAsTextInputFormat
 packageJobJar: [] [/usr/lib/hadoop/hadoop-streaming-2.7.3-amzn-6.jar] /tmp/streamjob4046090679719735987.jar tmpDir=null
@@ -196,8 +242,56 @@ $ hadoop fs -cat /p2_q1/*
 13
 ``
 
-Launch Q2:
+**Q2**:
 
+The mapper `p2_q2_mapper.py`:
+```
+#!/usr/bin/python
+
+import sys
+from json import loads
+
+for line in sys.stdin:
+    current_line = loads(line)
+    if current_line is not None:
+        url = current_line['url']
+        user = current_line['user']
+        # Build key of url and value of user
+        print("{}\t{}".format(url, user))
+```
+
+The reducer `p2_q2_reducer.py`:
+```
+#!/usr/bin/python
+
+import sys
+
+current_url = None
+count = 0
+# For our data we do not have that many users for each URL. If the cardinality of this was very large,
+# this set would not be safe for memory. The solution is to once again use a two stage MR job.
+distinct_users = set()
+
+for line in sys.stdin:
+    try:
+        url, user = line.strip().split('\t')
+        # If same URL, we might increment count
+        if url == current_url:
+            distinct_users.add(user)
+        else:
+            # Only emit results if there is data
+            if len(distinct_users) > 0:
+                print("{}\t{}".format(current_url, len(distinct_users)))
+            distinct_users = set()
+        current_url = url
+    except ValueError:
+        continue
+
+if len(distinct_users) > 0:
+    print("{}\t{}".format(current_url, len(distinct_users)))
+```
+
+We launch the job:
 ```
 $ hadoop jar /usr/lib/hadoop-mapreduce/hadoop-streaming.jar -libjars avro-mapred-1.8.2.jar -D mapredduce.job.name="p2_q2" -files p2_q2_mapper.py,p2_q2_reducer.py -mapper p2_q2_mapper.py -reducer p2_q2_reducer.py -input /avro -output /p2_q2 -inputformat org.apache.avro.mapred.AvroAsTextInputFormat
 packageJobJar: [] [/usr/lib/hadoop/hadoop-streaming-2.7.3-amzn-6.jar] /tmp/streamjob731665940153735652.jar tmpDir=null
@@ -301,8 +395,51 @@ http://example.com/?url=6	5
 http://example.com/?url=9	5
 ``
 
-Launch Q3:
+**Q3**:
 
+
+The mapper `p2_q3_mapper.py`:
+```
+#!/usr/bin/python
+
+import sys
+from json import loads
+
+for line in sys.stdin:
+    current_line = loads(line)
+    if current_line is not None:
+        url = current_line['url']
+        user = current_line['user']
+        # Build key is url/user and the value is a count 1
+        print("{} : {}\t{}".format(url, user, 1))
+```
+
+The reducer `p2_q3_reducer.py`:
+```
+#!/usr/bin/python
+
+import sys
+
+current_user_url = None
+count = 0
+
+for line in sys.stdin:
+    user_url, value = line.strip().split('\t')
+    # If same URL/user, we might increment count
+    if user_url == current_user_url:
+        count += int(value)
+    else:
+        # Only emit results if there is data
+        if count > 0:
+            print("{}\t{}".format(current_user_url, count))
+        current_user_url = user_url
+        count = 1
+
+if count > 0:
+    print("{}\t{}".format(user_url, count))
+```
+
+We launch the job
 ```
 $ hadoop jar /usr/lib/hadoop-mapreduce/hadoop-streaming.jar -libjars avro-mapred-1.8.2.jar -D mapredduce.job.name="p2_q3" -files p2_q3_mapper.py,p2_q3_reducer.py -mapper p2_q3_mapper.py -reducer p2_q3_reducer.py -input /avro -output /p2_q3 -inputformat org.apache.avro.mapred.AvroAsTextInputFormat
 packageJobJar: [] [/usr/lib/hadoop/hadoop-streaming-2.7.3-amzn-6.jar] /tmp/streamjob1245710039366343928.jar tmpDir=null
@@ -653,6 +790,59 @@ We notice that not only did our Hive queries complete far quicker, but the data 
 
 The parquet format is efficient for job that do not require acces to all columns since only data from the columns that are required are read. In our problem here, we do not need any data from the user columns, so this is not read. Moreover, since compression is done on a per-column basis, we can expect excellent compression ratios and smaller data reads. In general this format would be very efficient for scenarios where our data has a large number of columns but we only need to read a few columns since we we only need to read a tiny fractional amount of the data compared to a row-store format.
 
+Our mapper `p4_mapper.py`:
+```
+#!/usr/bin/python
+"""
+Mapper that emits a tuple for only a matching URL and date. The date should be YYYY-MM-DD.
+"""
+import sys
+from json import loads
+
+filter_url = sys.argv[1]
+filter_date = sys.argv[2]
+
+for line in sys.stdin:
+    current_line = loads(line)
+    if current_line is not None:
+        timestamp = current_line['timestamp']
+        url = current_line['url']
+        # We might emit if the URL matches our filter URL
+        if filter_url == url:
+            # Extract the day
+            day = timestamp[:10]
+            # Only emit if this matches the specified day
+            if day == filter_date:
+                # Emit a key with the hour and a value with count 1
+                hour = timestamp[11:13]
+                print('{}\t1'.format(hour))
+```
+
+Our reducer `p4_reducer.py`:
+```
+#!/usr/bin/python
+
+import sys
+
+current_item = None
+current_count = 0
+
+for line in sys.stdin:
+    current_line = line.strip().split('\t')
+    if current_line is not None and len(current_line) == 2:
+        hour, count = current_line
+        # If a new hour is encountered we will reset the count and possibly print a result
+        if hour != current_item:
+            # Print after first item
+            if current_item is not None:
+                print('{}\t{}'.format(current_item, current_count))
+            current_item = hour
+            current_count = 0
+        current_count += int(count)
+
+if count > 0:
+    print('{}\t{}'.format(current_item, current_count))
+```
 
 Since we must supply a URL and date for filtering, we will use `http://example.com/?url=0` and `2018-02-13`, respectively. We launch the MR job including hadoop2-iow-lib-1.20.jar built from https://github.com/whale2/iow-hadoop-streaming and parquet-hadoop-bundle-1.8.1.jar from http://central.maven.org/maven2/org/apache/parquet/parquet-hadoop-bundle/1.8.1/parquet-hadoop-bundle-1.8.1.jar and are sure to include to pas our filter arguments to the mapper:
 ```
@@ -932,8 +1122,56 @@ $ hadoop fs -cat /p4_from_avro2/*
 ```
 ## Problem 5
 
-Our avro schema now includes a field for `uuid`. This is of type string and our program will generate this data by MD5 hashing the input line so that if we have two identical inputs we will generate a collision. To duplicate each record, we read in each file twice, and we see that our output file `logs_p5.avro` is more than twice as large as the avro file `logs.avro` from p1 since we additionally have included UUID data.
+Our avro schema now includes a field for `uuid`. This is of type string and our program will generate this data by MD5 hashing the input line so that if we have two identical inputs we will generate a collision.
 ```
+{"namespace": "logs_p5.avro",
+ "type": "record",
+ "name": "visits",
+ "fields": [
+     {"name": "uuid", "type": "string"},
+     {"name": "timestamp", "type": "string"},
+     {"name": "url",  "type": "string"},
+     {"name": "user", "type": "string"}
+ ]
+}
+```
+
+To duplicate each record, we read in each file twice in  `p5_avrowriter.py`:
+```
+"""Load the text logfiles and save them in a single avro file"""
+import avro.schema
+from avro.datafile import DataFileWriter
+from avro.io import DatumWriter
+import hashlib
+
+# Read the schema file
+schema = avro.schema.parse(open('input_logs_p5.avsc', 'rb').read())
+
+# Define the files to process
+# Intentionallly read each file twice so we have duplicates
+num_files = 4
+input_files = ['logs_{}.txt'.format(i % num_files) for i in range(num_files * 2)]
+with DataFileWriter(open('logs_p5.avro', 'wb'), DatumWriter(), schema) as writer:
+    # Process each input file
+    for input_file in input_files:
+        # Open each input file
+        with open(input_file, 'r') as current_file:
+            # Process each line in each input file
+            for line in current_file:
+                current_line = line.strip().split('\t')
+                # Only parse and write if there is correct input
+                if len(current_line) == 3:
+                    timestamp, url, user = current_line
+                    # Generate uuid for the line
+                    uuid = hashlib.md5(str(current_line)).hexdigest()
+                    # Write to avro
+                    writer.append({'uuid': uuid, 'timestamp': timestamp, 'url': url, 'user': user})
+
+```
+
+Our output file `logs_p5.avro` is more than twice as large as the avro file `logs.avro` from Problem 1 since we additionally have included UUID data.
+```
+$ python p5_avrowriter.py
 $ ls -lh *.avro
 -rw-r--r--  1 david.shaub  1289279784    13M Feb 21 20:20 logs.avro
 -rw-r--r--  1 david.shaub  1289279784    42M Feb 24 12:01 logs_p5.avro
@@ -946,6 +1184,53 @@ $ hadoop fs -copyFromLocal logs_p5.avro /avro_duplicates/
 $ hadoop fs -ls /avro_duplicates
 Found 1 items
 -rw-r--r--   1 hadoop hadoop   44099746 2018-02-24 23:43 /avro_duplicates/logs_p5.avro
+```
+
+Our mapper `p5_mapper.py`:
+```
+#!/usr/bin/python
+
+import sys
+from json import loads
+
+for line in sys.stdin:
+    current_line = loads(line)
+    if current_line is not None:
+        uuid = current_line['uuid']
+        url = current_line['url']
+        user = current_line['user']
+        # Build key is url/user and the value is the uuid
+        print("{} : {}\t{}".format(url, user, uuid))
+```
+
+Our reducer `p5_reducer.py`:
+```
+#!/usr/bin/python
+
+import sys
+
+uuid_set = set()
+current_user_url = None
+count = 0
+
+for line in sys.stdin:
+    user_url, value = line.strip().split('\t')
+    # If same URL/user, we might increment count
+    if user_url == current_user_url:
+        # Only increment the count if we haven't encountered this UUID yet
+        if value not in uuid_set:
+            uuid_set.add(value)
+            count += 1
+    else:
+        # Only emit results if there is data
+        if len(uuid_set) > 0:
+            print("{}\t{}".format(current_user_url, count))
+        current_user_url = user_url
+        uuid_set = set(value)
+        count = 0
+
+if len(uuid_set) > 0:
+    print("{}\t{}".format(user_url, count))
 ```
 
 The MR job requires very few modifications: our mapper now outputs the UUID as a value, and our reducer only increments the count if this is a new UUID that hasn't been seen before for the URL/user combination.
