@@ -9,6 +9,8 @@ All problems were completed, including problem 5.
 
 ## Problem 1
 
+We download Flume and after verifying the signature extract to `~/apache-flume-1.8.0-bin`.
+
 The flume configuration file `p1.conf`:
 ```
 a1.channels = ch-1
@@ -404,7 +406,7 @@ echo "Must supply a numeric rate argument"
 exit 1
 ```
 
-Our Flume agent will use the following `p2.conf` config file:
+We setup our Flume agent with the following `p2.conf` config file so that a new file in the sink is created every 5 seconds:
 ```
 a1.channels = ch-1
 a1.channels.ch-1.type = memory
@@ -420,4 +422,23 @@ a1.sources.r1.command = tail -F /var/log/secure
 a1.sinks.k1.type = file_roll
 a1.sinks.k1.channel = ch-1
 a1.sinks.k1.sink.directory = /home/vagrant/PBDP/hw5/hw5_p2_sink
+a1.sinks.k1.sink.directory.rollInterval = 5
+```
+
+Launch the Flume agent:
+```
+$ ~/apache-flume-1.8.0-bin/bin/flume-ng agent --conf ~/apache-flume-1.8.0-bin/conf --conf-file p2.conf --name a1 -Dflume.root.logger=INFO,console
+```
+
+For our first experiment, we launch our script to generate access to the server at 20 events per second and then revoke permissions so that Flume can no longer create new sink files. We'll wait 5 seconds before revoking permissions and checking the files created in the sink. Then after 5 minutes we'll restore access and again check the sink file contents.
+```
+./p2_generator.sh 20 & sleep 5
+chmod 444 /home/vagrant/PBDP/hw5/hw5_p2_sink
+sleep 5
+wc -l /home/vagrant/PBDP/hw5/hw5_p2_sink/*
+sleep 300
+chmod 666 /home/vagrant/PBDP/hw5/hw5_p2_sink
+wc -l /home/vagrant/PBDP/hw5/hw5_p2_sink/*
+sleep 5
+wc -l /home/vagrant/PBDP/hw5/hw5_p2_sink/*
 ```
