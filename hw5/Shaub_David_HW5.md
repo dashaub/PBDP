@@ -427,6 +427,7 @@ a1.sinks.k1.sink.directory.rollInterval = 5
 
 Launch the Flume agent:
 ```
+$ mkdir -p /home/vagrant/PBDP/hw5/hw5_p2_sink
 $ ~/apache-flume-1.8.0-bin/bin/flume-ng agent --conf ~/apache-flume-1.8.0-bin/conf --conf-file p2.conf --name a1 -Dflume.root.logger=INFO,console
 ```
 
@@ -437,8 +438,9 @@ chmod 444 /home/vagrant/PBDP/hw5/hw5_p2_sink
 sleep 5
 wc -l /home/vagrant/PBDP/hw5/hw5_p2_sink/*
 sleep 300
-chmod 666 /home/vagrant/PBDP/hw5/hw5_p2_sink
+chmod 775 /home/vagrant/PBDP/hw5/hw5_p2_sink
 wc -l /home/vagrant/PBDP/hw5/hw5_p2_sink/*
 sleep 5
 wc -l /home/vagrant/PBDP/hw5/hw5_p2_sink/*
+sudo wc -l /var/log/httpd/access_log
 ```
