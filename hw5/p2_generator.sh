@@ -4,7 +4,7 @@
 if (( "$1" != 1 )); then
     rate=$(echo "1 / $1" | bc -l)
     while true; do
-        curl 'localhost:8080'
+        curl 'localhost:80' > /dev/null
         sleep $rate
     done
 fi
