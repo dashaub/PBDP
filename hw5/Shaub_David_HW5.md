@@ -640,11 +640,9 @@ RANK    CNT   LINE/S LINE
   10     76     0.83 ::1 - - [28/Feb/2018:23:44:25 +0000] "GET / HTTP/1.1" 200 85 "-" "curl/7.29.0"   
 ```
 
-The number of entries appearing in the Apache access log or the Flume sink is not particularly informative since we were monitoring throughput with `logtop`, but for completeness they are reported below:
-```
-```
-
 Overall we see that Flume is surprisingly difficult to disrupt: the experimental procedures that sometimes produced failures could not always be reproduced despite adjusting the message generation rate in a single process in increments of 50 or even running many separate message generation programs. CPU resources were frequently saturated between the `httpd`, Flume, and generator script functions: in one trial, more than 100 generator scripts were running at a rate of 10 mps each and Flume still did not fail. In another with a generation rate of 100 mps, 35 scripts resulted in a theoretical 3500 mps and Flume still did not fail. It was observed, however, that the actual generation rate in `logtop` never climbed above the 350-400 mps range. 
 
 
 ## Problem 3
+
+The Flume configuration file is very similar to Problem 2.
