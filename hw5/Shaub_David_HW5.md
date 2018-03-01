@@ -432,46 +432,219 @@ $ ~/apache-flume-1.8.0-bin/bin/flume-ng agent --conf ~/apache-flume-1.8.0-bin/co
 Warning: JAVA_HOME is not set!
 Info: Including Hive libraries found via () for Hive access
 + exec /usr/bin/java -Xmx20m -Dflume.root.logger=INFO,console -cp '/home/vagrant/apache-flume-1.8.0-bin/conf:/home/vagrant/apache-flume-1.8.0-bin/lib/*:/lib/*' -Djava.library.path= org.apache.flume.node.Application --conf-file p2.conf --name a1
-2018-02-27 15:21:29,123 (lifecycleSupervisor-1-0) [INFO - org.apache.flume.node.PollingPropertiesFileConfigurationProvider.start(PollingPropertiesFileConfigurationProvider.java:62)] Configuration provider starting
-2018-02-27 15:21:29,127 (conf-file-poller-0) [INFO - org.apache.flume.node.PollingPropertiesFileConfigurationProvider$FileWatcherRunnable.run(PollingPropertiesFileConfigurationProvider.java:134)] Reloading configuration file:p2.conf
-2018-02-27 15:21:29,133 (conf-file-poller-0) [INFO - org.apache.flume.conf.FlumeConfiguration$AgentConfiguration.addProperty(FlumeConfiguration.java:930)] Added sinks: k1 Agent: a1
-2018-02-27 15:21:29,133 (conf-file-poller-0) [INFO - org.apache.flume.conf.FlumeConfiguration$AgentConfiguration.addProperty(FlumeConfiguration.java:1016)] Processing:k1
-2018-02-27 15:21:29,133 (conf-file-poller-0) [INFO - org.apache.flume.conf.FlumeConfiguration$AgentConfiguration.addProperty(FlumeConfiguration.java:1016)] Processing:k1
-2018-02-27 15:21:29,133 (conf-file-poller-0) [INFO - org.apache.flume.conf.FlumeConfiguration$AgentConfiguration.addProperty(FlumeConfiguration.java:1016)] Processing:k1
-2018-02-27 15:21:29,134 (conf-file-poller-0) [INFO - org.apache.flume.conf.FlumeConfiguration$AgentConfiguration.addProperty(FlumeConfiguration.java:1016)] Processing:k1
-2018-02-27 15:21:29,142 (conf-file-poller-0) [INFO - org.apache.flume.conf.FlumeConfiguration.validateConfiguration(FlumeConfiguration.java:140)] Post-validation flume configuration contains configuration for agents: [a1]
-2018-02-27 15:21:29,142 (conf-file-poller-0) [INFO - org.apache.flume.node.AbstractConfigurationProvider.loadChannels(AbstractConfigurationProvider.java:147)] Creating channels
-2018-02-27 15:21:29,147 (conf-file-poller-0) [INFO - org.apache.flume.channel.DefaultChannelFactory.create(DefaultChannelFactory.java:42)] Creating instance of channel ch-1 type memory
-2018-02-27 15:21:29,153 (conf-file-poller-0) [INFO - org.apache.flume.node.AbstractConfigurationProvider.loadChannels(AbstractConfigurationProvider.java:201)] Created channel ch-1
-2018-02-27 15:21:29,154 (conf-file-poller-0) [INFO - org.apache.flume.source.DefaultSourceFactory.create(DefaultSourceFactory.java:41)] Creating instance of source src-1, type exec
-2018-02-27 15:21:29,159 (conf-file-poller-0) [INFO - org.apache.flume.sink.DefaultSinkFactory.create(DefaultSinkFactory.java:42)] Creating instance of sink: k1, type: file_roll
-2018-02-27 15:21:29,163 (conf-file-poller-0) [INFO - org.apache.flume.node.AbstractConfigurationProvider.getConfiguration(AbstractConfigurationProvider.java:116)] Channel ch-1 connected to [src-1, k1]
-2018-02-27 15:21:29,168 (conf-file-poller-0) [INFO - org.apache.flume.node.Application.startAllComponents(Application.java:137)] Starting new configuration:{ sourceRunners:{src-1=EventDrivenSourceRunner: { source:org.apache.flume.source.ExecSource{name:src-1,state:IDLE} }} sinkRunners:{k1=SinkRunner: { policy:org.apache.flume.sink.DefaultSinkProcessor@18ca564c counterGroup:{ name:null counters:{} } }} channels:{ch-1=org.apache.flume.channel.MemoryChannel{name: ch-1}} }
-2018-02-27 15:21:29,175 (conf-file-poller-0) [INFO - org.apache.flume.node.Application.startAllComponents(Application.java:144)] Starting Channel ch-1
-2018-02-27 15:21:29,177 (conf-file-poller-0) [INFO - org.apache.flume.node.Application.startAllComponents(Application.java:159)] Waiting for channel: ch-1 to start. Sleeping for 500 ms
-2018-02-27 15:21:29,220 (lifecycleSupervisor-1-2) [INFO - org.apache.flume.instrumentation.MonitoredCounterGroup.register(MonitoredCounterGroup.java:119)] Monitored counter group for type: CHANNEL, name: ch-1: Successfully registered new MBean.
-2018-02-27 15:21:29,220 (lifecycleSupervisor-1-2) [INFO - org.apache.flume.instrumentation.MonitoredCounterGroup.start(MonitoredCounterGroup.java:95)] Component type: CHANNEL, name: ch-1 started
-2018-02-27 15:21:29,682 (conf-file-poller-0) [INFO - org.apache.flume.node.Application.startAllComponents(Application.java:171)] Starting Sink k1
-2018-02-27 15:21:29,683 (lifecycleSupervisor-1-0) [INFO - org.apache.flume.sink.RollingFileSink.start(RollingFileSink.java:110)] Starting org.apache.flume.sink.RollingFileSink{name:k1, channel:ch-1}...
-2018-02-27 15:21:29,683 (conf-file-poller-0) [INFO - org.apache.flume.node.Application.startAllComponents(Application.java:182)] Starting Source src-1
-2018-02-27 15:21:29,684 (lifecycleSupervisor-1-0) [INFO - org.apache.flume.instrumentation.MonitoredCounterGroup.register(MonitoredCounterGroup.java:119)] Monitored counter group for type: SINK, name: k1: Successfully registered new MBean.
-2018-02-27 15:21:29,684 (lifecycleSupervisor-1-0) [INFO - org.apache.flume.instrumentation.MonitoredCounterGroup.start(MonitoredCounterGroup.java:95)] Component type: SINK, name: k1 started
-2018-02-27 15:21:29,684 (lifecycleSupervisor-1-2) [INFO - org.apache.flume.source.ExecSource.start(ExecSource.java:168)] Exec source starting with command: sudo tail -F /var/log/httpd/access_log
-2018-02-27 15:21:29,684 (lifecycleSupervisor-1-2) [INFO - org.apache.flume.instrumentation.MonitoredCounterGroup.register(MonitoredCounterGroup.java:119)] Monitored counter group for type: SOURCE, name: src-1: Successfully registered new MBean.
-2018-02-27 15:21:29,685 (lifecycleSupervisor-1-2) [INFO - org.apache.flume.instrumentation.MonitoredCounterGroup.start(MonitoredCounterGroup.java:95)] Component type: SOURCE, name: src-1 started
-2018-02-27 15:21:29,685 (lifecycleSupervisor-1-0) [INFO - org.apache.flume.sink.RollingFileSink.start(RollingFileSink.java:142)] RollingFileSink k1 started.
+2018-02-27 15:50:29,862 (lifecycleSupervisor-1-0) [INFO - org.apache.flume.node.PollingPropertiesFileConfigurationProvider.start(PollingPropertiesFileConfigurationProvider.java:62)] Configuration provider starting
+2018-02-27 15:50:29,866 (conf-file-poller-0) [INFO - org.apache.flume.node.PollingPropertiesFileConfigurationProvider$FileWatcherRunnable.run(PollingPropertiesFileConfigurationProvider.java:134)] Reloading configuration file:p2.conf
+2018-02-27 15:50:29,872 (conf-file-poller-0) [INFO - org.apache.flume.conf.FlumeConfiguration$AgentConfiguration.addProperty(FlumeConfiguration.java:930)] Added sinks: k1 Agent: a1
+2018-02-27 15:50:29,872 (conf-file-poller-0) [INFO - org.apache.flume.conf.FlumeConfiguration$AgentConfiguration.addProperty(FlumeConfiguration.java:1016)] Processing:k1
+2018-02-27 15:50:29,872 (conf-file-poller-0) [INFO - org.apache.flume.conf.FlumeConfiguration$AgentConfiguration.addProperty(FlumeConfiguration.java:1016)] Processing:k1
+2018-02-27 15:50:29,872 (conf-file-poller-0) [INFO - org.apache.flume.conf.FlumeConfiguration$AgentConfiguration.addProperty(FlumeConfiguration.java:1016)] Processing:k1
+2018-02-27 15:50:29,872 (conf-file-poller-0) [INFO - org.apache.flume.conf.FlumeConfiguration$AgentConfiguration.addProperty(FlumeConfiguration.java:1016)] Processing:k1
+2018-02-27 15:50:29,881 (conf-file-poller-0) [INFO - org.apache.flume.conf.FlumeConfiguration.validateConfiguration(FlumeConfiguration.java:140)] Post-validation flume configuration contains configuration for agents: [a1]
+2018-02-27 15:50:29,881 (conf-file-poller-0) [INFO - org.apache.flume.node.AbstractConfigurationProvider.loadChannels(AbstractConfigurationProvider.java:147)] Creating channels
+2018-02-27 15:50:29,886 (conf-file-poller-0) [INFO - org.apache.flume.channel.DefaultChannelFactory.create(DefaultChannelFactory.java:42)] Creating instance of channel ch-1 type memory
+2018-02-27 15:50:29,889 (conf-file-poller-0) [INFO - org.apache.flume.node.AbstractConfigurationProvider.loadChannels(AbstractConfigurationProvider.java:201)] Created channel ch-1
+2018-02-27 15:50:29,893 (conf-file-poller-0) [INFO - org.apache.flume.source.DefaultSourceFactory.create(DefaultSourceFactory.java:41)] Creating instance of source src-1, type exec
+2018-02-27 15:50:29,898 (conf-file-poller-0) [INFO - org.apache.flume.sink.DefaultSinkFactory.create(DefaultSinkFactory.java:42)] Creating instance of sink: k1, type: file_roll
+2018-02-27 15:50:29,903 (conf-file-poller-0) [INFO - org.apache.flume.node.AbstractConfigurationProvider.getConfiguration(AbstractConfigurationProvider.java:116)] Channel ch-1 connected to [src-1, k1]
+2018-02-27 15:50:29,908 (conf-file-poller-0) [INFO - org.apache.flume.node.Application.startAllComponents(Application.java:137)] Starting new configuration:{ sourceRunners:{src-1=EventDrivenSourceRunner: { source:org.apache.flume.source.ExecSource{name:src-1,state:IDLE} }} sinkRunners:{k1=SinkRunner: { policy:org.apache.flume.sink.DefaultSinkProcessor@18ca564c counterGroup:{ name:null counters:{} } }} channels:{ch-1=org.apache.flume.channel.MemoryChannel{name: ch-1}} }
+2018-02-27 15:50:29,915 (conf-file-poller-0) [INFO - org.apache.flume.node.Application.startAllComponents(Application.java:144)] Starting Channel ch-1
+2018-02-27 15:50:29,918 (conf-file-poller-0) [INFO - org.apache.flume.node.Application.startAllComponents(Application.java:159)] Waiting for channel: ch-1 to start. Sleeping for 500 ms
+2018-02-27 15:50:29,961 (lifecycleSupervisor-1-0) [INFO - org.apache.flume.instrumentation.MonitoredCounterGroup.register(MonitoredCounterGroup.java:119)] Monitored counter group for type: CHANNEL, name: ch-1: Successfully registered new MBean.
+2018-02-27 15:50:29,962 (lifecycleSupervisor-1-0) [INFO - org.apache.flume.instrumentation.MonitoredCounterGroup.start(MonitoredCounterGroup.java:95)] Component type: CHANNEL, name: ch-1 started
+2018-02-27 15:50:30,443 (conf-file-poller-0) [INFO - org.apache.flume.node.Application.startAllComponents(Application.java:171)] Starting Sink k1
+2018-02-27 15:50:30,444 (lifecycleSupervisor-1-2) [INFO - org.apache.flume.sink.RollingFileSink.start(RollingFileSink.java:110)] Starting org.apache.flume.sink.RollingFileSink{name:k1, channel:ch-1}...
+2018-02-27 15:50:30,444 (conf-file-poller-0) [INFO - org.apache.flume.node.Application.startAllComponents(Application.java:182)] Starting Source src-1
+2018-02-27 15:50:30,444 (lifecycleSupervisor-1-2) [INFO - org.apache.flume.instrumentation.MonitoredCounterGroup.register(MonitoredCounterGroup.java:119)] Monitored counter group for type: SINK, name: k1: Successfully registered new MBean.
+2018-02-27 15:50:30,444 (lifecycleSupervisor-1-2) [INFO - org.apache.flume.instrumentation.MonitoredCounterGroup.start(MonitoredCounterGroup.java:95)] Component type: SINK, name: k1 started
+2018-02-27 15:50:30,444 (lifecycleSupervisor-1-0) [INFO - org.apache.flume.source.ExecSource.start(ExecSource.java:168)] Exec source starting with command: sudo tail -F /var/log/httpd/access_log
+2018-02-27 15:50:30,445 (lifecycleSupervisor-1-0) [INFO - org.apache.flume.instrumentation.MonitoredCounterGroup.register(MonitoredCounterGroup.java:119)] Monitored counter group for type: SOURCE, name: src-1: Successfully registered new MBean.
+2018-02-27 15:50:30,445 (lifecycleSupervisor-1-0) [INFO - org.apache.flume.instrumentation.MonitoredCounterGroup.start(MonitoredCounterGroup.java:95)] Component type: SOURCE, name: src-1 started
+2018-02-27 15:50:30,447 (lifecycleSupervisor-1-2) [INFO - org.apache.flume.sink.RollingFileSink.start(RollingFileSink.java:142)] RollingFileSink k1 started.
 ```
+
+**Experiment 1**
 
 For our first experiment, we launch our script to generate access to the server at 20 events per second and then revoke permissions so that Flume can no longer create new sink files. We'll wait 5 seconds before revoking permissions and checking the files created in the sink. Then after 5 minutes we'll restore access and again check the sink file contents.
 ```
-./p2_generator.sh 20 & sleep 5
-chmod 444 /home/vagrant/PBDP/hw5/hw5_p2_sink
-sleep 5
-wc -l /home/vagrant/PBDP/hw5/hw5_p2_sink/*
-sleep 300
-chmod 775 /home/vagrant/PBDP/hw5/hw5_p2_sink
-wc -l /home/vagrant/PBDP/hw5/hw5_p2_sink/*
-sleep 5
-wc -l /home/vagrant/PBDP/hw5/hw5_p2_sink/*
-sudo wc -l /var/log/httpd/access_log
+$ ./p2_generator.sh 20 & sleep 5
+$ chmod 444 /home/vagrant/PBDP/hw5/hw5_p2_sink
+$ sleep 5
+$ sudo wc -l /home/vagrant/PBDP/hw5/hw5_p2_sink/*
+   0 /home/vagrant/PBDP/hw5/hw5_p2_sink/1519746629901-1
+   0 /home/vagrant/PBDP/hw5/hw5_p2_sink/1519746629901-2
+   0 /home/vagrant/PBDP/hw5/hw5_p2_sink/1519746629901-3
+  81 /home/vagrant/PBDP/hw5/hw5_p2_sink/1519746629901-4
+  81 total
+$ sleep 300
+$ chmod 775 /home/vagrant/PBDP/hw5/hw5_p2_sink
+$ wc -l /home/vagrant/PBDP/hw5/hw5_p2_sink/*
+   0 /home/vagrant/PBDP/hw5/hw5_p2_sink/1519746629901-1
+   0 /home/vagrant/PBDP/hw5/hw5_p2_sink/1519746629901-2
+   0 /home/vagrant/PBDP/hw5/hw5_p2_sink/1519746629901-3
+  81 /home/vagrant/PBDP/hw5/hw5_p2_sink/1519746629901-4
+  81 total
+$ sleep 5
+$ wc -l /home/vagrant/PBDP/hw5/hw5_p2_sink/*
+    0 /home/vagrant/PBDP/hw5/hw5_p2_sink/1519746629901-1
+    0 /home/vagrant/PBDP/hw5/hw5_p2_sink/1519746629901-2
+    0 /home/vagrant/PBDP/hw5/hw5_p2_sink/1519746629901-3
+   81 /home/vagrant/PBDP/hw5/hw5_p2_sink/1519746629901-4
+  100 /home/vagrant/PBDP/hw5/hw5_p2_sink/1519746629901-5
+    0 /home/vagrant/PBDP/hw5/hw5_p2_sink/1519746629901-6
+  181 total
+$ sudo wc -l /var/log/httpd/access_log
+6268 /var/log/httpd/access_log
 ```
+
+We notice that after we alter permissions, 81 lines have been written (somewhat less than the 20 * 5 = 100 we would expect). Once permissions have been revoked new data cannot enter the sink, and the Flume agent alerts us: 
+```
+2018-02-27 15:55:12,119 (SinkRunner-PollingRunner-DefaultSinkProcessor) [ERROR - org.apache.flume.SinkRunner$PollingRunner.run(SinkRunner.java:158)] Unable to deliver event. Exception follows.
+org.apache.flume.EventDeliveryException: Failed to open file /home/vagrant/PBDP/hw5/hw5_p2_sink/1519746629901-5 while delivering event
+	at org.apache.flume.sink.RollingFileSink.process(RollingFileSink.java:184)
+	at org.apache.flume.sink.DefaultSinkProcessor.process(DefaultSinkProcessor.java:67)
+	at org.apache.flume.SinkRunner$PollingRunner.run(SinkRunner.java:145)
+	at java.lang.Thread.run(Thread.java:748)
+Caused by: java.io.FileNotFoundException: /home/vagrant/PBDP/hw5/hw5_p2_sink/1519746629901-5 (Permission denied)
+	at java.io.FileOutputStream.open0(Native Method)
+	at java.io.FileOutputStream.open(FileOutputStream.java:270)
+	at java.io.FileOutputStream.<init>(FileOutputStream.java:213)
+	at java.io.FileOutputStream.<init>(FileOutputStream.java:162)
+	at org.apache.flume.sink.RollingFileSink.process(RollingFileSink.java:175)
+	... 3 more
+```
+Since we use a memory channel with a capacity for 100 messages, we expect to loose many messages during the five minutes (approximately 20 * 60 * 5 - 100 = 5900). After the five minutes have elapsed, we check the sink again and indeed see that no new messages have been written. After the next five second sleep, we see that exactly 100 messages have been added (likely those held in the memory channel). At this point our Flume log is no longer generating errors. Finally, we can compare this to the 6268 entries generated in the httpd log: indeed approximately 6000 entries never made it to our Flume sink while permissions were revoked.
+
+**Experiment 2**
+
+For this experiment we will
+
+1. Start a flume agent and give it 10 seconds to start up
+2. Start our log generator running at 20 events per second
+3. Continue for 20 seconds
+4. Shutdown our Flume agent and wait five minutes.
+5. Restart our Flume agent and wait another 20 seconds.
+6. Stop all processes and examine the httpd access logs
+
+
+The full output of the experiment is included in `p2_experiment2.txt` and is mostly filled with verbose Flume startup logs, killing tasks, and sending tasks to the background (which are not our primary focus here to understand Flume's message delivery guarantees). A sanitized version of a script's relevant output follows:
+```
+# Start flume and give it some time to begin
+$ ~/apache-flume-1.8.0-bin/bin/flume-ng agent --conf ~/apache-flume-1.8.0-bin/conf --conf-file p2.conf --name a1 -Dflume.root.logger=INFO,console & sleep 10
+# Start log generator
+$ ./p2_generator.sh 20 & sleep 20
+
+# Stop Flume and wait 5 minutes
+$ ps aux | grep /home/vagrant/apache-flume-1.8.0-bin | awk '{{print $2}}' | xargs kill -9 & wc -l hw5_p2_sink/*
+281 hw5_p2_sink/1519845860255-1
+
+$ sleep 300
+
+# Restart Flume and wait 20 seconds
+$ ~/apache-flume-1.8.0-bin/bin/flume-ng agent --conf ~/apache-flume-1.8.0-bin/conf --conf-file p2.conf --name a1 -Dflume.root.logger=INFO,console & sleep 20
+# Stop all generator scripts
+$ ps aux | grep p2_generator.sh | awk '{{print $2}}' | xargs kill
+
+# Examine results
+$ wc -l hw5_p2_sink/*
+  281 hw5_p2_sink/1519845860255-1
+  300 hw5_p2_sink/1519846190270-1
+  581 total
+$ sudo wc -l /var/log/httpd/access_log
+5226 /var/log/httpd/access_log
+
+```
+
+From the 281 events generated by our script while the Flume agent was running for the first 20 second, we see the generator script is not hitting the 20 mps target and is only achieving ~14 mps. By the end of the experiment, a total of 5226 messages appear in the Apache access log, but once Flume is resumed after 5 minutes we still only have 281 + 300 = 581 messages: we see that unsurprisingly Flume does not recover the messages from a `tail -f` source while it is not running. The clear warning in the Flume documentation makes this quite clear: "Your application can never guarantee data has been received when using a unidirectional asynchronous interface such as ExecSource! As an extension of this warning - and to be completely clear - there is absolutely zero guarantee of event delivery when using this source."
+
+**Experiment 3**
+
+For the third experiment, our approach will be to launch additional message generator scripts and monitor the Flume process until it is overwhelmed. Since we have seen that our generator script does not acctualy generate messages in the access log at the claimed messages-per-second argument, we will also monitor the output of `/var/log/httpd/access_log` with `logtop` to see the true mps rate. In one terminal we launch the Flume agent and will monitor this for when Flume alerts us of an error.
+```
+$ ~/apache-flume-1.8.0-bin/bin/flume-ng agent --conf ~/apache-flume-1.8.0-bin/conf --conf-file p2.conf --name a1 -Dflume.root.logger=INFO,console
+```
+
+In a second terminal, we launch the following to start new message generators.
+```
+msg_rate='50'
+while true; do
+    echo "Generating logs at $msg_rate mps"
+    ./p2_generator.sh 50 & 
+    msg_rate=$((msg_rate + 50))
+    sleep 10
+done
+```
+And finally in a third terminal we will check the mps access rate in Apache:
+```
+sudo tail -f /var/log/httpd/access_log | logtop
+```
+
+Flume produced an error when we were using 5 generators for a supposed throughput of 250 mps (although the `logtop` output was lower). This experimental procedure with the desired Flume failure could not be reproduced, however.
+
+
+In another trial with a single generator, Flume failed to keep up at 500 mps. This process also could not be deterministically reproduced.
+```
+./p2_generator.sh 500
+```
+
+The Flume sink reports that it cannot keep up with the messages we are generating.
+```
+2018-02-28 23:41:06,043 (pool-4-thread-1) [ERROR - org.apache.flume.source.ExecSource$ExecRunnable.run(ExecSource.java:349)] Failed while running command: sudo tail -F /var/log/httpd/access_log
+org.apache.flume.ChannelFullException: Space for commit to queue couldn't be acquired. Sinks are likely not keeping up with sources, or the buffer size is too tight
+	at org.apache.flume.channel.MemoryChannel$MemoryTransaction.doCommit(MemoryChannel.java:128)
+	at org.apache.flume.channel.BasicTransactionSemantics.commit(BasicTransactionSemantics.java:151)
+	at org.apache.flume.channel.ChannelProcessor.processEventBatch(ChannelProcessor.java:194)
+	at org.apache.flume.source.ExecSource$ExecRunnable.flushEventBatch(ExecSource.java:378)
+	at org.apache.flume.source.ExecSource$ExecRunnable.run(ExecSource.java:338)
+	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511)
+	at java.util.concurrent.FutureTask.run(FutureTask.java:266)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+	at java.lang.Thread.run(Thread.java:748)
+2018-02-28 23:41:06,057 (timedFlushExecService20-0) [ERROR - org.apache.flume.source.ExecSource$ExecRunnable$1.run(ExecSource.java:324)] Exception occurred when processing event batch
+org.apache.flume.ChannelException: java.lang.InterruptedException
+	at org.apache.flume.channel.BasicTransactionSemantics.commit(BasicTransactionSemantics.java:154)
+	at org.apache.flume.channel.ChannelProcessor.processEventBatch(ChannelProcessor.java:194)
+	at org.apache.flume.source.ExecSource$ExecRunnable.flushEventBatch(ExecSource.java:378)
+	at org.apache.flume.source.ExecSource$ExecRunnable.access$100(ExecSource.java:251)
+	at org.apache.flume.source.ExecSource$ExecRunnable$1.run(ExecSource.java:320)
+	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511)
+	at java.util.concurrent.FutureTask.runAndReset(FutureTask.java:308)
+	at java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.access$301(ScheduledThreadPoolExecutor.java:180)
+	at java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:294)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+	at java.lang.Thread.run(Thread.java:748)
+Caused by: java.lang.InterruptedException
+	at java.util.concurrent.locks.AbstractQueuedSynchronizer.doAcquireSharedNanos(AbstractQueuedSynchronizer.java:1039)
+	at java.util.concurrent.locks.AbstractQueuedSynchronizer.tryAcquireSharedNanos(AbstractQueuedSynchronizer.java:1328)
+	at java.util.concurrent.Semaphore.tryAcquire(Semaphore.java:582)
+	at org.apache.flume.channel.MemoryChannel$MemoryTransaction.doCommit(MemoryChannel.java:126)
+	at org.apache.flume.channel.BasicTransactionSemantics.commit(BasicTransactionSemantics.java:151)
+	... 11 more
+```
+
+We see from the logtop output that our actual message generation rate was much lower at ~57 mps thaan the supposed 500 mps.
+```
+$ sudo tail -f /var/log/httpd/access_log | logtop
+5322 lines, 57.85 lines/s
+RANK    CNT   LINE/S LINE
+   1     81     0.88 ::1 - - [28/Feb/2018:23:44:44 +0000] "GET / HTTP/1.1" 200 85 "-" "curl/7.29.0"                                                                                                              
+   2     78     0.85 ::1 - - [28/Feb/2018:23:44:49 +0000] "GET / HTTP/1.1" 200 85 "-" "curl/7.29.0"                                                                                                              
+   3     77     0.84 ::1 - - [28/Feb/2018:23:44:31 +0000] "GET / HTTP/1.1" 200 85 "-" "curl/7.29.0"                                                                                                              
+   4     77     0.84 ::1 - - [28/Feb/2018:23:44:37 +0000] "GET / HTTP/1.1" 200 85 "-" "curl/7.29.0"                                                                                                              
+   5     77     0.84 ::1 - - [28/Feb/2018:23:44:38 +0000] "GET / HTTP/1.1" 200 85 "-" "curl/7.29.0"                                                                                                              
+   6     77     0.84 ::1 - - [28/Feb/2018:23:44:39 +0000] "GET / HTTP/1.1" 200 85 "-" "curl/7.29.0"                                                                                                              
+   7     76     0.83 ::1 - - [28/Feb/2018:23:44:21 +0000] "GET / HTTP/1.1" 200 85 "-" "curl/7.29.0"                                                                                                              
+   8     76     0.83 ::1 - - [28/Feb/2018:23:44:22 +0000] "GET / HTTP/1.1" 200 85 "-" "curl/7.29.0"                                                                                                              
+   9     76     0.83 ::1 - - [28/Feb/2018:23:44:23 +0000] "GET / HTTP/1.1" 200 85 "-" "curl/7.29.0"                                                                                                              
+  10     76     0.83 ::1 - - [28/Feb/2018:23:44:25 +0000] "GET / HTTP/1.1" 200 85 "-" "curl/7.29.0"   
+```
+
+The number of entries appearing in the Apache access log or the Flume sink is not particularly informative since we were monitoring throughput with `logtop`, but for completeness they are reported below:
+```
+```
+
+Overall we see that Flume is surprisingly difficult to disrupt: the experimental procedures that sometimes produced failures could not always be reproduced despite adjusting the message generation rate in a single process in increments of 50 or even running many separate message generation programs. CPU resources were frequently saturated between the `httpd`, Flume, and generator script functions: in one trial, more than 100 generator scripts were running at a rate of 10 mps each and Flume still did not fail. In another with a generation rate of 100 mps, 35 scripts resulted in a theoretical 3500 mps and Flume still did not fail. It was observed, however, that the actual generation rate in `logtop` never climbed above the 350-400 mps range. 
+
+
+## Problem 3
