@@ -666,6 +666,28 @@ a1.sinks.k1.sink.directory = /home/vagrant/PBDP/hw5/hw5_p2_sink
 a1.sinks.k1.sink.directory.rollInterval = 5
 ```
 
+Flume behaves as earlier when we run with 20 events per second:
+```
+# Start Flume and the generator; run the generator for 30 seconds
+$ ~/apache-flume-1.8.0-bin/bin/flume-ng agent --conf ~/apache-flume-1.8.0-bin/conf --conf-file p3.conf --name a1 -Dflume.root.logger=INFO,console & sleep 10
+$ ./p2_generator.sh 20 & sleep 30
+
+# Stop the generator and give Flume some time to process the final events
+$ ps aux | grep p2_generator.sh | awk '{{print $2}}' | xargs kill
+$ sleep 30
+
+# Compare results
+$ sudo wc -l /var/log/httpd/access_log
+451 /var/log/httpd/access_log
+$ wc -l hw5_p3_sink/*
+  221 hw5_p3_sink/1519900074409-1
+  230 hw5_p3_sink/1519900074409-2
+    0 hw5_p3_sink/1519900074409-3
+  451 total
+```
+
+The Flume agent processed all the logs.
+
 **Experiment 1**
 
 We launch our Flume agent:
@@ -1284,6 +1306,7 @@ $ wc -l hw5_p3_sink/*
 ~/apache-flume-1.8.0-bin/bin/flume-ng agent --conf ~/apache-flume-1.8.0-bin/conf --conf-file p3.conf --name a1 -Dflume.root.logger=INFO,console
 
 ps aux | grep p2_generator.sh | awk '{{print $2}}' | xargs kill
+ps aux | grep /home/vagrant/apache-flume-1.8.0-bin | awk '{{print $2}}' | xargs kill -9
 rm -r hw5_p3_datadir/ hw5_p3_checkpoint/ hw5_p3_sink/*
 sudo rm /var/log/httpd/access_log
 sudo systemctl restart httpd
