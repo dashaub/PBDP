@@ -81,7 +81,7 @@ We copy the four log files into the source directory, and in the log notice that
 2018-02-27 03:43:30,681 (pool-4-thread-1) [INFO - org.apache.flume.client.avro.ReliableSpoolingFileEventReader.rollCurrentFile(ReliableSpoolingFileEventReader.java:433)] Preparing to move file /home/vagrant/PBDP/hw5/hw5_p1_source/log_file_04.txt to /home/vagrant/PBDP/hw5/hw5_p1_source/log_file_04.txt.COMPLETED
 ```
 
-We can also validated that the data in the source have been processed and now appear in the sink:
+We can also validate that the data in the source have been processed and now appear in the sink:
 ```
 $ wc -l hw5_p1_source/*
   25452 hw5_p1_source/log_file_01.txt.COMPLETED
@@ -357,7 +357,7 @@ $ wc -l hw5_p1_sink/*
       0 hw5_p1_sink/1519704905388-3
  147327 total
 ```
-As the Flume documentation explains, although our agent will die if duplicate logs enter the source, "this source is reliable and will not miss data, even if Flume is restarted or killed."
+As the Flume documentation explains, we see that although our agent will die if duplicate logs enter the source, "this source is reliable and will not miss data, even if Flume is restarted or killed."
 
 
 ## Probem 2
@@ -623,7 +623,7 @@ Caused by: java.lang.InterruptedException
 	... 11 more
 ```
 
-We see from the logtop output that our actual message generation rate was much lower at ~57 mps thaan the supposed 500 mps.
+We see from the logtop output that our actual message generation rate was much lower at ~57 mps than the supposed 500 mps.
 ```
 $ sudo tail -f /var/log/httpd/access_log | logtop
 5322 lines, 57.85 lines/s
@@ -787,7 +787,7 @@ Caused by: java.io.FileNotFoundException: /home/vagrant/PBDP/hw5/hw5_p3_sink/151
 	... 3 more
 ```
 
-After permissions are restored, we see that Flume has not written new data although the Apache log has grown significantly to 4877. After waiting another few minutes, we see the 100 log events in the Flume file channel are not in the sink, but new events appearing in the Apache log do not make it to the sink:
+After permissions are restored, we see that Flume has not written new data although the Apache log has grown significantly to 4877. After waiting another few minutes, we see the 100 log events in the Flume file channel are now in the sink, but new events appearing in the Apache log while the sink was down do not make it to the sink:
 ```
 $ wc -l /home/vagrant/PBDP/hw5/hw5_p3_sink/*
    41 /home/vagrant/PBDP/hw5/hw5_p3_sink/1519879307523-1
@@ -806,7 +806,7 @@ $ sudo wc -l /var/log/httpd/access_log
 8804 /var/log/httpd/access_log
 ```
 
-The lesson here appears to be that once the file channel limit is exceeded, all future messages are not delivered and we only receive the messages that were in our channel once the sink is restored. The results match what we saw in Problem 2, but while the memory channel contents were immediately written to the sink once permissions were restored, the file channel took some time to write to the sink. This makes sense for the performance-durability tradeoff between the two channel types. If we wanted to save more events, while the sink is offline, we would increase the `capacity` so that more events are held in memory.
+The lesson here appears to be that once the file channel limit is exceeded, all future messages are not delivered and we only receive the messages that were in our channel once the sink is restored. The results match what we saw in Problem 2, but while the memory channel contents were immediately written to the sink once permissions were restored, the file channel took some time to write to the sink. This makes sense for the performance-durability tradeoff between the two channel types. If we wanted to recover more events while the sink is offline, we would increase the `capacity` so that more events are held in memory.
 
 To watch the `checkpointDir` and `dataDir`, we run an experiment again:
 ```
@@ -1440,15 +1440,42 @@ a1.sinks.k1.sink.directory.rollInterval = 5
 ```
 
 We'll watch what happens to the `checkpointDir` and `dataDir` as our experiment runs
- ~/apache-flume-1.8.0-bin/bin/flume-ng agent --conf ~/apache-flume-1.8.0-bin/conf --conf-file p3.conf --name a1 -Dflume.root.logger=INFO,console & sleep 10
+```
+$ ~/apache-flume-1.8.0-bin/bin/flume-ng agent --conf ~/apache-flume-1.8.0-bin/conf --conf-file p3_tiny.conf --name a1 -Dflume.root.logger=INFO,console & sleep 10
 ./p2_generator.sh 100 & sleep 2
-ls -lh /home/vagrant/PBDP/hw5/hw5_p3_checkpoint
-ls -lh /home/vagrant/PBDP/hw5/hw5_p3_datadir
-sleep 60
-ls -lh /home/vagrant/PBDP/hw5/hw5_p3_checkpoint
-ls -lh /home/vagrant/PBDP/hw5/hw5_p3_datadir
+$ ls -lh /home/vagrant/PBDP/hw5/hw5_p3_checkpoint
+-rw-rw-r--. 1 vagrant vagrant 8.2K Mar  2 11:07 checkpoint
+-rw-rw-r--. 1 vagrant vagrant   25 Mar  2 11:07 checkpoint.meta
+-rw-rw-r--. 1 vagrant vagrant   32 Mar  2 11:07 inflightputs
+-rw-rw-r--. 1 vagrant vagrant   32 Mar  2 11:07 inflighttakes
+-rw-rw-r--. 1 vagrant vagrant    0 Mar  2 11:07 in_use.lock
+drwxrwxr-x. 2 vagrant vagrant    6 Mar  2 11:07 queueset
+$ ls -lh /home/vagrant/PBDP/hw5/hw5_p3_datadir
+total 2.0M
+-rw-rw-r--. 1 vagrant vagrant    0 Mar  2 11:07 in_use.lock
+-rw-rw-r--. 1 vagrant vagrant 1.0M Mar  2 11:07 log-1
+-rw-rw-r--. 1 vagrant vagrant   47 Mar  2 11:07 log-1.meta
+$ sleep 60
+$ ls -lh /home/vagrant/PBDP/hw5/hw5_p3_checkpoint
+total 24K
+-rw-rw-r--. 1 vagrant vagrant 8.2K Mar  2 11:08 checkpoint
+-rw-rw-r--. 1 vagrant vagrant   37 Mar  2 11:08 checkpoint.meta
+-rw-rw-r--. 1 vagrant vagrant   32 Mar  2 11:08 inflightputs
+-rw-rw-r--. 1 vagrant vagrant   32 Mar  2 11:08 inflighttakes
+-rw-rw-r--. 1 vagrant vagrant    0 Mar  2 11:07 in_use.lock
+drwxrwxr-x. 2 vagrant vagrant    6 Mar  2 11:07 queueset
+$ ls -lh /home/vagrant/PBDP/hw5/hw5_p3_datadir
+total 2.1M
+-rw-rw-r--. 1 vagrant vagrant    0 Mar  2 11:07 in_use.lock
+-rw-rw-r--. 1 vagrant vagrant 1.0M Mar  2 11:07 log-1
+-rw-rw-r--. 1 vagrant vagrant   47 Mar  2 11:08 log-1.meta
+-rw-rw-r--. 1 vagrant vagrant    0 Mar  2 11:07 log-2
+-rw-rw-r--. 1 vagrant vagrant   47 Mar  2 11:07 log-2.meta.tmp
+-rw-rw-r--. 1 vagrant vagrant 1.0M Mar  2 11:08 log-3
+-rw-rw-r--. 1 vagrant vagrant   47 Mar  2 11:08 log-3.meta
 ```
-```
+
+In this experiment more data has appeared in both the datadir and checkpoint dir while we overwhelmed our Flume agent.
 
 
 ## Problem 4
@@ -1480,6 +1507,91 @@ a1.sinks.k1.sink.directory = /home/vagrant/PBDP/hw5/hw5_p4_sink
 a1.sinks.k1.sink.directory.rollInterval = 5
 ```
 
+We launch the Flume agent:
+```
+$ ~/apache-flume-1.8.0-bin/bin/flume-ng agent --conf ~/apache-flume-1.8.0-bin/conf --conf-file p4.conf --name a1 -Dflume.root.logger=INFO,console
+Warning: JAVA_HOME is not set!
+Info: Including Hive libraries found via () for Hive access
++ exec /usr/bin/java -Xmx20m -Dflume.root.logger=INFO,console -cp '/home/vagrant/apache-flume-1.8.0-bin/conf:/home/vagrant/apache-flume-1.8.0-bin/lib/*:/lib/*' -Djava.library.path= org.apache.flume.node.Application --conf-file p4.conf --name a1
+2018-03-02 14:10:47,460 (lifecycleSupervisor-1-0) [INFO - org.apache.flume.node.PollingPropertiesFileConfigurationProvider.start(PollingPropertiesFileConfigurationProvider.java:62)] Configuration provider starting
+2018-03-02 14:10:47,464 (conf-file-poller-0) [INFO - org.apache.flume.node.PollingPropertiesFileConfigurationProvider$FileWatcherRunnable.run(PollingPropertiesFileConfigurationProvider.java:134)] Reloading configuration file:p4.conf
+2018-03-02 14:10:47,470 (conf-file-poller-0) [INFO - org.apache.flume.conf.FlumeConfiguration$AgentConfiguration.addProperty(FlumeConfiguration.java:930)] Added sinks: k1 Agent: a1
+2018-03-02 14:10:47,470 (conf-file-poller-0) [INFO - org.apache.flume.conf.FlumeConfiguration$AgentConfiguration.addProperty(FlumeConfiguration.java:1016)] Processing:k1
+2018-03-02 14:10:47,470 (conf-file-poller-0) [INFO - org.apache.flume.conf.FlumeConfiguration$AgentConfiguration.addProperty(FlumeConfiguration.java:1016)] Processing:k1
+2018-03-02 14:10:47,470 (conf-file-poller-0) [INFO - org.apache.flume.conf.FlumeConfiguration$AgentConfiguration.addProperty(FlumeConfiguration.java:1016)] Processing:k1
+2018-03-02 14:10:47,470 (conf-file-poller-0) [INFO - org.apache.flume.conf.FlumeConfiguration$AgentConfiguration.addProperty(FlumeConfiguration.java:1016)] Processing:k1
+2018-03-02 14:10:47,479 (conf-file-poller-0) [INFO - org.apache.flume.conf.FlumeConfiguration.validateConfiguration(FlumeConfiguration.java:140)] Post-validation flume configuration contains configuration for agents: [a1]
+2018-03-02 14:10:47,479 (conf-file-poller-0) [INFO - org.apache.flume.node.AbstractConfigurationProvider.loadChannels(AbstractConfigurationProvider.java:147)] Creating channels
+2018-03-02 14:10:47,484 (conf-file-poller-0) [INFO - org.apache.flume.channel.DefaultChannelFactory.create(DefaultChannelFactory.java:42)] Creating instance of channel ch-1 type file
+2018-03-02 14:10:47,505 (conf-file-poller-0) [INFO - org.apache.flume.node.AbstractConfigurationProvider.loadChannels(AbstractConfigurationProvider.java:201)] Created channel ch-1
+2018-03-02 14:10:47,506 (conf-file-poller-0) [INFO - org.apache.flume.source.DefaultSourceFactory.create(DefaultSourceFactory.java:41)] Creating instance of source src-1, type exec
+2018-03-02 14:10:47,523 (conf-file-poller-0) [INFO - org.apache.flume.sink.DefaultSinkFactory.create(DefaultSinkFactory.java:42)] Creating instance of sink: k1, type: file_roll
+2018-03-02 14:10:47,528 (conf-file-poller-0) [INFO - org.apache.flume.node.AbstractConfigurationProvider.getConfiguration(AbstractConfigurationProvider.java:116)] Channel ch-1 connected to [src-1, k1]
+2018-03-02 14:10:47,533 (conf-file-poller-0) [INFO - org.apache.flume.node.Application.startAllComponents(Application.java:137)] Starting new configuration:{ sourceRunners:{src-1=EventDrivenSourceRunner: { source:org.apache.flume.source.ExecSource{name:src-1,state:IDLE} }} sinkRunners:{k1=SinkRunner: { policy:org.apache.flume.sink.DefaultSinkProcessor@615d6963 counterGroup:{ name:null counters:{} } }} channels:{ch-1=FileChannel ch-1 { dataDirs: [/home/vagrant/PBDP/hw5/hw5_p4_datadir] }} }
+2018-03-02 14:10:47,533 (conf-file-poller-0) [INFO - org.apache.flume.node.Application.startAllComponents(Application.java:144)] Starting Channel ch-1
+2018-03-02 14:10:47,535 (lifecycleSupervisor-1-0) [INFO - org.apache.flume.channel.file.FileChannel.start(FileChannel.java:277)] Starting FileChannel ch-1 { dataDirs: [/home/vagrant/PBDP/hw5/hw5_p4_datadir] }...
+2018-03-02 14:10:47,580 (lifecycleSupervisor-1-0) [INFO - org.apache.flume.instrumentation.MonitoredCounterGroup.register(MonitoredCounterGroup.java:119)] Monitored counter group for type: CHANNEL, name: ch-1: Successfully registered new MBean.
+2018-03-02 14:10:47,581 (lifecycleSupervisor-1-0) [INFO - org.apache.flume.instrumentation.MonitoredCounterGroup.start(MonitoredCounterGroup.java:95)] Component type: CHANNEL, name: ch-1 started
+2018-03-02 14:10:47,588 (lifecycleSupervisor-1-0) [INFO - org.apache.flume.channel.file.Log.<init>(Log.java:356)] Encryption is not enabled
+2018-03-02 14:10:47,589 (lifecycleSupervisor-1-0) [INFO - org.apache.flume.channel.file.Log.replay(Log.java:406)] Replay started
+2018-03-02 14:10:47,590 (lifecycleSupervisor-1-0) [INFO - org.apache.flume.channel.file.Log.replay(Log.java:418)] Found NextFileID 0, from []
+2018-03-02 14:10:47,597 (lifecycleSupervisor-1-0) [INFO - org.apache.flume.channel.file.EventQueueBackingStoreFile.<init>(EventQueueBackingStoreFile.java:95)] Preallocated /home/vagrant/PBDP/hw5/hw5_p4_checkpoint/checkpoint to 9032 for capacity 100
+2018-03-02 14:10:47,599 (lifecycleSupervisor-1-0) [INFO - org.apache.flume.channel.file.EventQueueBackingStoreFileV3.<init>(EventQueueBackingStoreFileV3.java:55)] Starting up with /home/vagrant/PBDP/hw5/hw5_p4_checkpoint/checkpoint and /home/vagrant/PBDP/hw5/hw5_p4_checkpoint/checkpoint.meta
+2018-03-02 14:10:47,670 (lifecycleSupervisor-1-0) [INFO - org.apache.flume.channel.file.FlumeEventQueue.<init>(FlumeEventQueue.java:115)] QueueSet population inserting 0 took 0
+2018-03-02 14:10:47,672 (lifecycleSupervisor-1-0) [INFO - org.apache.flume.channel.file.Log.replay(Log.java:457)] Last Checkpoint Fri Mar 02 14:10:47 UTC 2018, queue depth = 0
+2018-03-02 14:10:47,675 (lifecycleSupervisor-1-0) [INFO - org.apache.flume.channel.file.Log.doReplay(Log.java:542)] Replaying logs with v2 replay logic
+2018-03-02 14:10:47,676 (lifecycleSupervisor-1-0) [INFO - org.apache.flume.channel.file.ReplayHandler.replayLog(ReplayHandler.java:249)] Starting replay of []
+2018-03-02 14:10:47,676 (lifecycleSupervisor-1-0) [INFO - org.apache.flume.channel.file.ReplayHandler.replayLog(ReplayHandler.java:345)] read: 0, put: 0, take: 0, rollback: 0, commit: 0, skip: 0, eventCount:0
+2018-03-02 14:10:47,677 (lifecycleSupervisor-1-0) [INFO - org.apache.flume.channel.file.FlumeEventQueue.replayComplete(FlumeEventQueue.java:417)] Search Count = 0, Search Time = 0, Copy Count = 0, Copy Time = 0
+2018-03-02 14:10:47,682 (lifecycleSupervisor-1-0) [INFO - org.apache.flume.channel.file.Log.replay(Log.java:505)] Rolling /home/vagrant/PBDP/hw5/hw5_p4_datadir
+2018-03-02 14:10:47,682 (lifecycleSupervisor-1-0) [INFO - org.apache.flume.channel.file.Log.roll(Log.java:990)] Roll start /home/vagrant/PBDP/hw5/hw5_p4_datadir
+2018-03-02 14:10:47,690 (lifecycleSupervisor-1-0) [INFO - org.apache.flume.tools.DirectMemoryUtils.getDefaultDirectMemorySize(DirectMemoryUtils.java:112)] Unable to get maxDirectMemory from VM: NoSuchMethodException: sun.misc.VM.maxDirectMemory(null)
+2018-03-02 14:10:47,691 (lifecycleSupervisor-1-0) [INFO - org.apache.flume.tools.DirectMemoryUtils.allocate(DirectMemoryUtils.java:48)] Direct Memory Allocation:  Allocation = 1048576, Allocated = 0, MaxDirectMemorySize = 20447232, Remaining = 20447232
+2018-03-02 14:10:47,766 (lifecycleSupervisor-1-0) [INFO - org.apache.flume.channel.file.LogFile$Writer.<init>(LogFile.java:220)] Opened /home/vagrant/PBDP/hw5/hw5_p4_datadir/log-1
+2018-03-02 14:10:47,776 (lifecycleSupervisor-1-0) [INFO - org.apache.flume.channel.file.Log.roll(Log.java:1006)] Roll end
+2018-03-02 14:10:47,776 (lifecycleSupervisor-1-0) [INFO - org.apache.flume.channel.file.EventQueueBackingStoreFile.beginCheckpoint(EventQueueBackingStoreFile.java:230)] Start checkpoint for /home/vagrant/PBDP/hw5/hw5_p4_checkpoint/checkpoint, elements to sync = 0
+2018-03-02 14:10:47,784 (lifecycleSupervisor-1-0) [INFO - org.apache.flume.channel.file.EventQueueBackingStoreFile.checkpoint(EventQueueBackingStoreFile.java:255)] Updating checkpoint metadata: logWriteOrderID: 1519999847683, queueSize: 0, queueHead: 0
+2018-03-02 14:10:47,798 (lifecycleSupervisor-1-0) [INFO - org.apache.flume.channel.file.Log.writeCheckpoint(Log.java:1065)] Updated checkpoint for file: /home/vagrant/PBDP/hw5/hw5_p4_datadir/log-1 position: 0 logWriteOrderID: 1519999847683
+2018-03-02 14:10:47,798 (lifecycleSupervisor-1-0) [INFO - org.apache.flume.channel.file.FileChannel.start(FileChannel.java:288)] Queue Size after replay: 0 [channel=ch-1]
+2018-03-02 14:10:47,798 (conf-file-poller-0) [INFO - org.apache.flume.node.Application.startAllComponents(Application.java:171)] Starting Sink k1
+2018-03-02 14:10:47,799 (lifecycleSupervisor-1-1) [INFO - org.apache.flume.sink.RollingFileSink.start(RollingFileSink.java:110)] Starting org.apache.flume.sink.RollingFileSink{name:k1, channel:ch-1}...
+2018-03-02 14:10:47,799 (conf-file-poller-0) [INFO - org.apache.flume.node.Application.startAllComponents(Application.java:182)] Starting Source src-1
+2018-03-02 14:10:47,799 (lifecycleSupervisor-1-0) [INFO - org.apache.flume.source.ExecSource.start(ExecSource.java:168)] Exec source starting with command: sudo tail -F /var/log/httpd/access_log
+2018-03-02 14:10:47,799 (lifecycleSupervisor-1-1) [INFO - org.apache.flume.instrumentation.MonitoredCounterGroup.register(MonitoredCounterGroup.java:119)] Monitored counter group for type: SINK, name: k1: Successfully registered new MBean.
+2018-03-02 14:10:47,800 (lifecycleSupervisor-1-1) [INFO - org.apache.flume.instrumentation.MonitoredCounterGroup.start(MonitoredCounterGroup.java:95)] Component type: SINK, name: k1 started
+2018-03-02 14:10:47,800 (lifecycleSupervisor-1-0) [INFO - org.apache.flume.instrumentation.MonitoredCounterGroup.register(MonitoredCounterGroup.java:119)] Monitored counter group for type: SOURCE, name: src-1: Successfully registered new MBean.
+2018-03-02 14:10:47,800 (lifecycleSupervisor-1-0) [INFO - org.apache.flume.instrumentation.MonitoredCounterGroup.start(MonitoredCounterGroup.java:95)] Component type: SOURCE, name: src-1 started
+2018-03-02 14:10:47,800 (lifecycleSupervisor-1-1) [INFO - org.apache.flume.sink.RollingFileSink.start(RollingFileSink.java:142)] RollingFileSink k1 started.
+```
+And run the generator:
+```
+./p2_generator.sh 20
+```
+
+All events are processed by our Flume agent:
+```
+$ sudo wc -l /var/log/httpd/access_log
+164 /var/log/httpd/access_log
+$ wc -l hw5_p4_sink/*
+   41 hw5_p4_sink/1520000274744-1
+  123 hw5_p4_sink/1520000274744-2
+  164 total
+```
+
+However, a UUID is not appearing in our sink files as it should:
+```
+$ cat hw5_p4_sink/* | tail
+::1 - - [02/Mar/2018:14:18:27 +0000] "GET / HTTP/1.1" 200 85 "-" "curl/7.29.0"
+::1 - - [02/Mar/2018:14:18:27 +0000] "GET / HTTP/1.1" 200 85 "-" "curl/7.29.0"
+::1 - - [02/Mar/2018:14:18:27 +0000] "GET / HTTP/1.1" 200 85 "-" "curl/7.29.0"
+::1 - - [02/Mar/2018:14:18:27 +0000] "GET / HTTP/1.1" 200 85 "-" "curl/7.29.0"
+::1 - - [02/Mar/2018:14:18:27 +0000] "GET / HTTP/1.1" 200 85 "-" "curl/7.29.0"
+::1 - - [02/Mar/2018:14:18:27 +0000] "GET / HTTP/1.1" 200 85 "-" "curl/7.29.0"
+::1 - - [02/Mar/2018:14:18:27 +0000] "GET / HTTP/1.1" 200 85 "-" "curl/7.29.0"
+::1 - - [02/Mar/2018:14:18:27 +0000] "GET / HTTP/1.1" 200 85 "-" "curl/7.29.0"
+::1 - - [02/Mar/2018:14:18:27 +0000] "GET / HTTP/1.1" 200 85 "-" "curl/7.29.0"
+::1 - - [02/Mar/2018:14:18:27 +0000] "GET / HTTP/1.1" 200 85 "-" "curl/7.29.0"
+```
 
 ## Problem 5
 
@@ -1491,7 +1603,7 @@ wget http://apache.cs.utah.edu/flume/1.8.0/apache-flume-1.8.0-bin.tar.gz
 tar xzvf apache-flume-1.8.0-bin.tar.gz
 ```
 
-We modify our config to use a memory channel with larger batch writes and with a large channel capacity and write to a HDFS sink: we set these larger so that our writes to HDFS are larger and generate fewer output files, and the large channel capacity guarantees we won't lose data:
+We modify our config to use a memory channel with larger batch writes and with a large channel capacity and write to a HDFS sink: we set these larger so that our writes to HDFS are larger, and the large channel capacity guarantees we won't lose data:
 ```
 a1.channels = ch-1
 a1.channels.ch-1.type = memory
@@ -1517,7 +1629,6 @@ $  ~/apache-flume-1.8.0-bin/bin/flume-ng agent --conf ~/apache-flume-1.8.0-bin/c
 Info: Including Hadoop libraries found via (/usr/bin/hadoop) for HDFS access
 Info: Including HBASE libraries found via (/usr/bin/hbase) for HBASE access
 Info: Including Hive libraries found via () for Hive access
-+ exec /etc/alternatives/jre/bin/java -Xmx20m -Dflume.root.logger=DEBUG,console -Dorg.apache.flume.log.printconfig=true -Dorg.apache.flume.log.rawdata=true -cp '/home/hadoop/apache-flume-1.8.0-bin/conf:/home/hadoop/apache-flume-1.8.0-bin/lib/*:/etc/hadoop/conf:/usr/lib/hadoop/lib/*:/usr/lib/hadoop/.//*:/usr/lib/hadoop-hdfs/./:/usr/lib/hadoop-hdfs/lib/*:/usr/lib/hadoop-hdfs/.//*:/usr/lib/hadoop-yarn/lib/*:/usr/lib/hadoop-yarn/.//*:/usr/lib/hadoop-mapreduce/lib/*:/usr/lib/hadoop-mapreduce/.//*::/etc/tez/conf:/usr/lib/tez/*:/usr/lib/tez/lib/*:/usr/lib/hadoop-lzo/lib/*:/usr/share/aws/aws-java-sdk/*:/usr/share/aws/emr/emrfs/conf:/usr/share/aws/emr/emrfs/lib/*:/usr/share/aws/emr/emrfs/auxlib/*:/usr/share/aws/emr/ddb/lib/emr-ddb-hadoop.jar:/usr/share/aws/emr/goodies/lib/emr-hadoop-goodies.jar:/usr/share/aws/emr/kinesis/lib/emr-kinesis-hadoop.jar:/usr/share/aws/emr/cloudwatch-sink/lib/*:/usr/share/aws/emr/security/conf:/usr/share/aws/emr/security/lib/*:/etc/hbase/conf:/etc/alternatives/jre/lib/tools.jar:/usr/lib/hbase:/usr/lib/hbase/lib/activation-1.1.jar:/usr/lib/hbase/lib/apacheds-i18n-2.0.0-M15.jar:/usr/lib/hbase/lib/apacheds-kerberos-codec-2.0.0-M15.jar:/usr/lib/hbase/lib/api-asn1-api-1.0.0-M20.jar:/usr/lib/hbase/lib/api-util-1.0.0-M20.jar:/usr/lib/hbase/lib/asm-3.1.jar:/usr/lib/hbase/lib/avro-1.7.7.jar:/usr/lib/hbase/lib/commons-beanutils-1.7.0.jar:/usr/lib/hbase/lib/commons-beanutils-core-1.8.0.jar:/usr/lib/hbase/lib/commons-cli-1.2.jar:/usr/lib/hbase/lib/commons-codec-1.9.jar:/usr/lib/hbase/lib/commons-collections-3.2.2.jar:/usr/lib/hbase/lib/commons-compress-1.4.1.jar:/usr/lib/hbase/lib/commons-configuration-1.6.jar:/usr/lib/hbase/lib/commons-daemon-1.0.13.jar:/usr/lib/hbase/lib/commons-digester-1.8.jar:/usr/lib/hbase/lib/commons-el-1.0.jar:/usr/lib/hbase/lib/commons-httpclient-3.1.jar:/usr/lib/hbase/lib/commons-io-2.4.jar:/usr/lib/hbase/lib/commons-lang-2.6.jar:/usr/lib/hbase/lib/commons-logging-1.2.jar:/usr/lib/hbase/lib/commons-math-2.2.jar:/usr/lib/hbase/lib/commons-math3-3.1.1.jar:/usr/lib/hbase/lib/commons-net-3.1.jar:/usr/lib/hbase/lib/curator-client-2.7.1.jar:/usr/lib/hbase/lib/curator-framework-2.7.1.jar:/usr/lib/hbase/lib/curator-recipes-2.7.1.jar:/usr/lib/hbase/lib/disruptor-3.3.0.jar:/usr/lib/hbase/lib/findbugs-annotations-1.3.9-1.jar:/usr/lib/hbase/lib/gson-2.2.4.jar:/usr/lib/hbase/lib/guava-12.0.1.jar:/usr/lib/hbase/lib/hadoop-annotations.jar:/usr/lib/hbase/lib/hadoop-auth.jar:/usr/lib/hbase/lib/hadoop-common.jar:/usr/lib/hbase/lib/hadoop-hdfs-client.jar:/usr/lib/hbase/lib/hadoop-mapreduce-client-app.jar:/usr/lib/hbase/lib/hadoop-mapreduce-client-common.jar:/usr/lib/hbase/lib/hadoop-mapreduce-client-core.jar:/usr/lib/hbase/lib/hadoop-mapreduce-client-jobclient.jar:/usr/lib/hbase/lib/hadoop-mapreduce-client-shuffle.jar:/usr/lib/hbase/lib/hadoop-yarn-api.jar:/usr/lib/hbase/lib/hadoop-yarn-client.jar:/usr/lib/hbase/lib/hadoop-yarn-common.jar:/usr/lib/hbase/lib/hadoop-yarn-server-common.jar:/usr/lib/hbase/lib/hbase-annotations-1.4.0.jar:/usr/lib/hbase/lib/hbase-annotations-1.4.0-tests.jar:/usr/lib/hbase/lib/hbase-client-1.4.0.jar:/usr/lib/hbase/lib/hbase-common-1.4.0.jar:/usr/lib/hbase/lib/hbase-common-1.4.0-tests.jar:/usr/lib/hbase/lib/hbase-examples-1.4.0.jar:/usr/lib/hbase/lib/hbase-external-blockcache-1.4.0.jar:/usr/lib/hbase/lib/hbase-hadoop2-compat-1.4.0.jar:/usr/lib/hbase/lib/hbase-hadoop-compat-1.4.0.jar:/usr/lib/hbase/lib/hbase-it-1.4.0.jar:/usr/lib/hbase/lib/hbase-it-1.4.0-tests.jar:/usr/lib/hbase/lib/hbase-metrics-1.4.0.jar:/usr/lib/hbase/lib/hbase-metrics-api-1.4.0.jar:/usr/lib/hbase/lib/hbase-prefix-tree-1.4.0.jar:/usr/lib/hbase/lib/hbase-procedure-1.4.0.jar:/usr/lib/hbase/lib/hbase-protocol-1.4.0.jar:/usr/lib/hbase/lib/hbase-resource-bundle-1.4.0.jar:/usr/lib/hbase/lib/hbase-rest-1.4.0.jar:/usr/lib/hbase/lib/hbase-rsgroup-1.4.0.jar:/usr/lib/hbase/lib/hbase-server-1.4.0.jar:/usr/lib/hbase/lib/hbase-server-1.4.0-tests.jar:/usr/lib/hbase/lib/hbase-shell-1.4.0.jar:/usr/lib/hbase/lib/hbase-thrift-1.4.0.jar:/usr/lib/hbase/lib/htrace-core-3.1.0-incubating.jar:/usr/lib/hbase/lib/htrace-core4-4.0.1-incubating.jar:/usr/lib/hbase/lib/httpclient-4.5.2.jar:/usr/lib/hbase/lib/httpcore-4.4.4.jar:/usr/lib/hbase/lib/jackson-core-asl-1.9.13.jar:/usr/lib/hbase/lib/jackson-jaxrs-1.9.13.jar:/usr/lib/hbase/lib/jackson-mapper-asl-1.9.13.jar:/usr/lib/hbase/lib/jackson-xc-1.9.13.jar:/usr/lib/hbase/lib/jamon-runtime-2.4.1.jar:/usr/lib/hbase/lib/jasper-compiler-5.5.23.jar:/usr/lib/hbase/lib/jasper-runtime-5.5.23.jar:/usr/lib/hbase/lib/jaxb-api-2.2.2.jar:/usr/lib/hbase/lib/jaxb-impl-2.2.3-1.jar:/usr/lib/hbase/lib/jcip-annotations-1.0.jar:/usr/lib/hbase/lib/jcodings-1.0.8.jar:/usr/lib/hbase/lib/jersey-client-1.9.jar:/usr/lib/hbase/lib/jersey-core-1.9.jar:/usr/lib/hbase/lib/jersey-json-1.9.jar:/usr/lib/hbase/lib/jersey-server-1.9.jar:/usr/lib/hbase/lib/jettison-1.3.3.jar:/usr/lib/hbase/lib/jetty-6.1.26.jar:/usr/lib/hbase/lib/jetty-sslengine-6.1.26.jar:/usr/lib/hbase/lib/jetty-util-6.1.26.jar:/usr/lib/hbase/lib/joni-2.1.2.jar:/usr/lib/hbase/lib/jruby-complete-1.6.8.jar:/usr/lib/hbase/lib/jsch-0.1.54.jar:/usr/lib/hbase/lib/json-smart-1.1.1.jar:/usr/lib/hbase/lib/jsp-2.1-6.1.14.jar:/usr/lib/hbase/lib/jsp-api-2.1-6.1.14.jar:/usr/lib/hbase/lib/junit-4.12.jar:/usr/lib/hbase/lib/leveldbjni-all-1.8.jar:/usr/lib/hbase/lib/libthrift-0.9.3.jar:/usr/lib/hbase/lib/log4j-1.2.17.jar:/usr/lib/hbase/lib/metrics-core-2.2.0.jar:/usr/lib/hbase/lib/metrics-core-3.1.2.jar:/usr/lib/hbase/lib/netty-all-4.1.8.Final.jar:/usr/lib/hbase/lib/nimbus-jose-jwt-3.9.jar:/usr/lib/hbase/lib/okhttp-2.4.0.jar:/usr/lib/hbase/lib/okio-1.4.0.jar:/usr/lib/hbase/lib/paranamer-2.3.jar:/usr/lib/hbase/lib/protobuf-java-2.5.0.jar:/usr/lib/hbase/lib/servlet-api-2.5-6.1.14.jar:/usr/lib/hbase/lib/slf4j-api-1.6.1.jar:/usr/lib/hbase/lib/snappy-java-1.0.5.jar:/usr/lib/hbase/lib/spymemcached-2.11.6.jar:/usr/lib/hbase/lib/xmlenc-0.52.jar:/usr/lib/hbase/lib/xz-1.0.jar:/usr/lib/hbase/lib/zookeeper.jar:/etc/hadoop/conf:/usr/lib/hadoop/lib/*:/usr/lib/hadoop/.//*:/usr/lib/hadoop-hdfs/./:/usr/lib/hadoop-hdfs/lib/*:/usr/lib/hadoop-hdfs/.//*:/usr/lib/hadoop-yarn/lib/*:/usr/lib/hadoop-yarn/.//*:/usr/lib/hadoop-mapreduce/lib/*:/usr/lib/hadoop-mapreduce/.//*::/etc/tez/conf:/usr/lib/tez/*:/usr/lib/tez/lib/*:/usr/lib/hadoop-lzo/lib/*:/usr/share/aws/aws-java-sdk/*:/usr/share/aws/emr/emrfs/conf:/usr/share/aws/emr/emrfs/lib/*:/usr/share/aws/emr/emrfs/auxlib/*:/usr/share/aws/emr/ddb/lib/emr-ddb-hadoop.jar:/usr/share/aws/emr/goodies/lib/emr-hadoop-goodies.jar:/usr/share/aws/emr/kinesis/lib/emr-kinesis-hadoop.jar:/usr/share/aws/emr/cloudwatch-sink/lib/*:/usr/share/aws/emr/security/conf:/usr/share/aws/emr/security/lib/*:/etc/hadoop/conf:/*:/lib/*:/usr/lib/zookeeper/*::/conf:/lib/*' -Djava.library.path=::/usr/lib/hadoop-lzo/lib/native:/usr/lib/hadoop/lib/native::/usr/lib/hadoop-lzo/lib/native:/usr/lib/hadoop/lib/native org.apache.flume.node.Application --conf-file p5.conf --name a1
 SLF4J: Class path contains multiple SLF4J bindings.
 SLF4J: Found binding in [jar:file:/home/hadoop/apache-flume-1.8.0-bin/lib/slf4j-log4j12-1.6.1.jar!/org/slf4j/impl/StaticLoggerBinder.class]
 SLF4J: Found binding in [jar:file:/usr/lib/hadoop/lib/slf4j-log4j12-1.7.10.jar!/org/slf4j/impl/StaticLoggerBinder.class]
@@ -1627,7 +1738,7 @@ The Flume agent also reports on its work creating output in HDFS:
 2018-03-03 16:42:54,273 (SinkRunner-PollingRunner-DefaultSinkProcessor) [INFO - org.apache.flume.sink.hdfs.BucketWriter.open(BucketWriter.java:251)] Creating hdfs://ec2-52-14-168-153.us-east-2.compute.amazonaws.com/flume/events/2018-03-03/16-42//FlumeData.1520095320257.tmp
 ```
 
-After all write complete, HDFS shows the data separated into folders based on minute:
+After all write complete, HDFS shows the data separated into folders based on minute. We have created many files here (and HDFS will not perform well with many small files), so if we were running this in production we would need to make adjusted to create fewer, larger files instead.
 ```
 $ hadoop fs -ls -R /flume
 drwxr-xr-x   - hadoop hadoop          0 2018-03-03 16:41 /flume/events
@@ -2503,12 +2614,3 @@ $ hadoop fs -cat /flume/events/2018-03-03/16-43/* | tail
 127.0.0.1 - - [03/Mar/2018:16:43:44 +0000] "GET / HTTP/1.1" 403 4891 "-" "curl/7.53.1"
 127.0.0.1 - - [03/Mar/2018:16:43:44 +0000] "GET / HTTP/1.1" 403 4891 "-" "curl/7.53.1"
 ```
-
-
-~/apache-flume-1.8.0-bin/bin/flume-ng agent --conf ~/apache-flume-1.8.0-bin/conf --conf-file p4.conf --name a1 -Dflume.root.logger=DEBUG,console -Dorg.apache.flume.log.printconfig=true -Dorg.apache.flume.log.rawdata=true
-
-ps aux | grep p2_generator.sh | awk '{{print $2}}' | xargs kill
-ps aux | grep /home/vagrant/apache-flume-1.8.0-bin | awk '{{print $2}}' | xargs kill -9
-rm -r hw5_p3_datadir/ hw5_p3_checkpoint/ hw5_p3_sink/*
-sudo rm /var/log/httpd/access_log
-sudo systemctl restart httpd
