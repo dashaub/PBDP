@@ -806,7 +806,7 @@ $ sudo wc -l /var/log/httpd/access_log
 8804 /var/log/httpd/access_log
 ```
 
-The lesson here appears to be that once the file channel limit is exceeded, all future messages are not delivered and we only receive the messages that were in our channel once the sink is restored. The results match what we saw in Problem 2, but while the memory channel contents were immediately written to the sink once permissions were restored, the file channel took some time to write to the sink. This makes sense for the performance-durability tradeoff between the two channel types.
+The lesson here appears to be that once the file channel limit is exceeded, all future messages are not delivered and we only receive the messages that were in our channel once the sink is restored. The results match what we saw in Problem 2, but while the memory channel contents were immediately written to the sink once permissions were restored, the file channel took some time to write to the sink. This makes sense for the performance-durability tradeoff between the two channel types. If we wanted to save more events, while the sink is offline, we would increase the `capacity` so that more events are held in memory.
 
 **Experiment 2**
 
@@ -1303,7 +1303,41 @@ $ wc -l hw5_p3_sink/*
   8724 total
 ```
 
-~/apache-flume-1.8.0-bin/bin/flume-ng agent --conf ~/apache-flume-1.8.0-bin/conf --conf-file p3.conf --name a1 -Dflume.root.logger=INFO,console
+## Problem 4
+
+
+## Problem 5
+
+We install Apache from the repos and download Flume to our home directory:
+```
+sudo yum install -y hddpd
+sudo systemctl start httpd
+wget http://apache.cs.utah.edu/flume/1.8.0/apache-flume-1.8.0-bin.tar.gz
+tar xzvf /apache-flume-1.8.0-bin.tar.gz
+```
+
+We modify our Problem 3 config file slightly to use the HDFS sink.
+```
+
+```
+
+We launch the Flume agent with this config
+```
+~/apache-flume-1.8.0-bin/bin/flume-ng agent --conf ~/apache-flume-1.8.0-bin/conf --conf-file p5.conf --name a1 -Dflume.root.logger=DEBUG,console -Dorg.apache.flume.log.printconfig=true -Dorg.apache.flume.log.rawdata=true
+```
+
+In a separate session the generator script creates logs at 100 mps for 3 minutes.
+```
+./p2_generator.sh 100 & sleep 180
+ps aux | grep p2_generator.sh | awk '{{print $2}}' | xargs kill
+```
+
+
+
+~/apache-flume-1.8.0-bin/bin/flume-ng agent --conf ~/apache-flume-1.8.0-bin/conf --conf-file p4.conf --name a1 -Dflume.root.logger=INFO,console
+
+
+~/apache-flume-1.8.0-bin/bin/flume-ng agent --conf ~/apache-flume-1.8.0-bin/conf --conf-file p4.conf --name a1 -Dflume.root.logger=DEBUG,console -Dorg.apache.flume.log.printconfig=true -Dorg.apache.flume.log.rawdata=true
 
 ps aux | grep p2_generator.sh | awk '{{print $2}}' | xargs kill
 ps aux | grep /home/vagrant/apache-flume-1.8.0-bin | awk '{{print $2}}' | xargs kill -9
