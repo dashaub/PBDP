@@ -808,6 +808,59 @@ $ sudo wc -l /var/log/httpd/access_log
 
 The lesson here appears to be that once the file channel limit is exceeded, all future messages are not delivered and we only receive the messages that were in our channel once the sink is restored. The results match what we saw in Problem 2, but while the memory channel contents were immediately written to the sink once permissions were restored, the file channel took some time to write to the sink. This makes sense for the performance-durability tradeoff between the two channel types. If we wanted to save more events, while the sink is offline, we would increase the `capacity` so that more events are held in memory.
 
+To watch the `checkpointDir` and `dataDir`, we run an experiment again:
+```
+~/apache-flume-1.8.0-bin/bin/flume-ng agent --conf ~/apache-flume-1.8.0-bin/conf --conf-file p3.conf --name a1 -Dflume.root.logger=INFO,console
+```
+
+Then we see what happens to these directories:
+```
+# Launch the generator and give it some time to produce events before revoking permissions
+./p2_generator.sh 20 & sleep 5
+chmod 444 /home/vagrant/PBDP/hw5/hw5_p3_sink
+sleep 5
+
+# See what is in these directories
+$ ls -l /home/vagrant/PBDP/hw5/hw5_p3_checkpoint
+total 24
+-rw-rw-r--. 1 vagrant vagrant 9032 Mar  2 10:12 checkpoint
+-rw-rw-r--. 1 vagrant vagrant   25 Mar  2 10:12 checkpoint.meta
+-rw-rw-r--. 1 vagrant vagrant   32 Mar  2 10:12 inflightputs
+-rw-rw-r--. 1 vagrant vagrant   32 Mar  2 10:12 inflighttakes
+-rw-rw-r--. 1 vagrant vagrant    0 Mar  2 10:12 in_use.lock
+drwxrwxr-x. 2 vagrant vagrant    6 Mar  2 10:12 queueset
+$ ls -lh /home/vagrant/PBDP/hw5/hw5_p3_datadir
+total 2.0M
+-rw-rw-r--. 1 vagrant vagrant    0 Mar  2 10:12 in_use.lock
+-rw-rw-r--. 1 vagrant vagrant    0 Mar  2 10:11 log-1
+-rw-rw-r--. 1 vagrant vagrant   47 Mar  2 10:11 log-1.meta
+-rw-rw-r--. 1 vagrant vagrant 1.0M Mar  2 10:12 log-2
+-rw-rw-r--. 1 vagrant vagrant   47 Mar  2 10:12 log-2.meta
+
+# Restore permissions, halt the generator, and wait a bit before checking the checkpoint and data dir 
+$ chmod 775 /home/vagrant/PBDP/hw5/hw5_p3_sink
+$ ps aux | grep p2_generator.sh | awk '{{print $2}}' | xargs kill
+$ sleep 30
+$ ls -l /home/vagrant/PBDP/hw5/hw5_p3_checkpoint
+total 24
+-rw-rw-r--. 1 vagrant vagrant 9032 Mar  2 10:12 checkpoint
+-rw-rw-r--. 1 vagrant vagrant   37 Mar  2 10:12 checkpoint.meta
+-rw-rw-r--. 1 vagrant vagrant   32 Mar  2 10:12 inflightputs
+-rw-rw-r--. 1 vagrant vagrant   32 Mar  2 10:12 inflighttakes
+-rw-rw-r--. 1 vagrant vagrant    0 Mar  2 10:12 in_use.lock
+drwxrwxr-x. 2 vagrant vagrant    6 Mar  2 10:12 queueset
+$ ls -lh /home/vagrant/PBDP/hw5/hw5_p3_datadir
+total 1.1M
+-rw-rw-r--. 1 vagrant vagrant    0 Mar  2 10:12 in_use.lock
+-rw-rw-r--. 1 vagrant vagrant    0 Mar  2 10:11 log-1
+-rw-rw-r--. 1 vagrant vagrant   47 Mar  2 10:11 log-1.meta
+-rw-rw-r--. 1 vagrant vagrant 1.0M Mar  2 10:12 log-2
+-rw-rw-r--. 1 vagrant vagrant   47 Mar  2 10:12 log-2.meta
+```
+
+We see that not much of interest has happened in our data dir--perhaps because our experiment was too short. However, in the checkpoint directory we see that new data has appeared as Flume kept track of state and gives the ability to recover from the sink failure.
+
+
 **Experiment 2**
 
 We delete all data in the Apache log, our sink, and the data/checkpoint directories. Once again we follow the same procedure as in Problem 2:
@@ -918,6 +971,68 @@ java.io.IOException: Usable space exhausted, only 0 bytes remaining, required 52
 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
 	at java.lang.Thread.run(Thread.java:748)
 ```
+
+We repeat the experiment again to monitor the datadir and checkpointdir:
+```
+# Start flume and give it some time to begin
+$ ~/apache-flume-1.8.0-bin/bin/flume-ng agent --conf ~/apache-flume-1.8.0-bin/conf --conf-file p3.conf --name a1 -Dflume.root.logger=INFO,console & sleep 10
+
+# Start log generator
+$ ./p2_generator.sh 20 & sleep 20
+
+# Examine the data and checkpoint dir
+$ ls -lh /home/vagrant/PBDP/hw5/hw5_p3_datadir
+total 3.0M
+-rw-rw-r--. 1 vagrant vagrant    0 Mar  2 10:24 in_use.lock
+-rw-rw-r--. 1 vagrant vagrant    0 Mar  2 10:11 log-1
+-rw-rw-r--. 1 vagrant vagrant   47 Mar  2 10:11 log-1.meta
+-rw-rw-r--. 1 vagrant vagrant 1.0M Mar  2 10:12 log-2
+-rw-rw-r--. 1 vagrant vagrant   47 Mar  2 10:24 log-2.meta
+-rw-rw-r--. 1 vagrant vagrant 1.0M Mar  2 10:25 log-3
+-rw-rw-r--. 1 vagrant vagrant   47 Mar  2 10:24 log-3.meta
+$ ls -lh /home/vagrant/PBDP/hw5/hw5_p3_checkpoint
+total 24K
+-rw-rw-r--. 1 vagrant vagrant 8.9K Mar  2 10:24 checkpoint
+-rw-rw-r--. 1 vagrant vagrant   25 Mar  2 10:24 checkpoint.meta
+-rw-rw-r--. 1 vagrant vagrant   32 Mar  2 10:24 inflightputs
+-rw-rw-r--. 1 vagrant vagrant   32 Mar  2 10:24 inflighttakes
+-rw-rw-r--. 1 vagrant vagrant    0 Mar  2 10:24 in_use.lock
+drwxrwxr-x. 2 vagrant vagrant    6 Mar  2 10:24 queueset
+
+# Stop Flume and wait 5 minutes
+$ ps aux | grep /home/vagrant/apache-flume-1.8.0-bin | awk '{{print $2}}' | xargs kill -9
+
+$ sleep 300
+
+# Restart Flume and wait 20 seconds
+$ ~/apache-flume-1.8.0-bin/bin/flume-ng agent --conf ~/apache-flume-1.8.0-bin/conf --conf-file p3.conf --name a1 -Dflume.root.logger=INFO,console & sleep 20
+# Stop all generator scripts
+$ ps aux | grep p2_generator.sh | awk '{{print $2}}' | xargs kill
+
+# Examine the data and checkpoint dir
+$ ls -lh /home/vagrant/PBDP/hw5/hw5_p3_datadir
+total 4.0M
+-rw-rw-r--. 1 vagrant vagrant    0 Mar  2 10:24 in_use.lock
+-rw-rw-r--. 1 vagrant vagrant    0 Mar  2 10:11 log-1
+-rw-rw-r--. 1 vagrant vagrant   47 Mar  2 10:11 log-1.meta
+-rw-rw-r--. 1 vagrant vagrant 1.0M Mar  2 10:12 log-2
+-rw-rw-r--. 1 vagrant vagrant   47 Mar  2 10:24 log-2.meta
+-rw-rw-r--. 1 vagrant vagrant 1.0M Mar  2 10:25 log-3
+-rw-rw-r--. 1 vagrant vagrant   47 Mar  2 10:30 log-3.meta
+-rw-rw-r--. 1 vagrant vagrant 1.0M Mar  2 10:30 log-4
+-rw-rw-r--. 1 vagrant vagrant   47 Mar  2 10:30 log-4.meta
+$ ls -lh /home/vagrant/PBDP/hw5/hw5_p3_checkpoint
+total 24K
+-rw-rw-r--. 1 vagrant vagrant 8.9K Mar  2 10:30 checkpoint
+-rw-rw-r--. 1 vagrant vagrant   37 Mar  2 10:30 checkpoint.meta
+-rw-rw-r--. 1 vagrant vagrant   32 Mar  2 10:30 inflightputs
+-rw-rw-r--. 1 vagrant vagrant   32 Mar  2 10:30 inflighttakes
+-rw-rw-r--. 1 vagrant vagrant    0 Mar  2 10:24 in_use.lock
+drwxrwxr-x. 2 vagrant vagrant    6 Mar  2 10:30 queueset
+```
+
+The datadir and checkpointdir appear unchanged in the before/after state of this experiment. In the first experiment Flume was still running while the sink was down so it could use these directories to hold data until the sink recovered, but since we killed Flume in this experiment no data was written here, and those messages are lost.
+
 
 **Experiment 3**
 
@@ -1303,7 +1418,67 @@ $ wc -l hw5_p3_sink/*
   8724 total
 ```
 
+We'll run this once more with a very small channel capacity in `p3_tiny.conf` so we can overwhelm Flume
+```
+a1.channels = ch-1
+a1.channels.ch-1.type = file
+a1.channels.ch-1.capacity = 10
+a1.channels.ch-1.transactionCapacity = 10
+a1.channels.ch-1.checkpointDir = /home/vagrant/PBDP/hw5/hw5_p3_checkpoint
+a1.channels.ch-1.dataDirs = /home/vagrant/PBDP/hw5/hw5_p3_datadir
+a1.sources = src-1
+a1.sinks = k1
+
+a1.sources.src-1.type = exec
+a1.sources.src-1.channels = ch-1
+a1.sources.src-1.command = sudo tail -F /var/log/httpd/access_log
+
+a1.sinks.k1.type = file_roll
+a1.sinks.k1.channel = ch-1
+a1.sinks.k1.sink.directory = /home/vagrant/PBDP/hw5/hw5_p3_sink
+a1.sinks.k1.sink.directory.rollInterval = 5
+```
+
+We'll watch what happens to the `checkpointDir` and `dataDir` as our experiment runs
+ ~/apache-flume-1.8.0-bin/bin/flume-ng agent --conf ~/apache-flume-1.8.0-bin/conf --conf-file p3.conf --name a1 -Dflume.root.logger=INFO,console & sleep 10
+./p2_generator.sh 100 & sleep 2
+ls -lh /home/vagrant/PBDP/hw5/hw5_p3_checkpoint
+ls -lh /home/vagrant/PBDP/hw5/hw5_p3_datadir
+sleep 60
+ls -lh /home/vagrant/PBDP/hw5/hw5_p3_checkpoint
+ls -lh /home/vagrant/PBDP/hw5/hw5_p3_datadir
+```
+```
+
+
 ## Problem 4
+
+Our configuration file:
+```
+a1.channels = ch-1
+a1.sources = src-1
+a1.sinks = k1
+
+
+a1.channels.ch-1.type = file
+a1.channels.ch-1.capacity = 100
+a1.channels.ch-1.transactionCapacity = 100
+a1.channels.ch-1.checkpointDir = /home/vagrant/PBDP/hw5/hw5_p4_checkpoint
+a1.channels.ch-1.dataDirs = /home/vagrant/PBDP/hw5/hw5_p4_datadir
+
+
+a1.sources.src-1.type = exec
+a1.sources.src-1.channels = ch-1
+a1.sources.src-1.command = sudo tail -F /var/log/httpd/access_log
+a1.sources.src-1.interceptors = i1
+a1.sources.src-1.interceptors.i1.type = org.apache.flume.sink.solr.morphline.UUIDInterceptor$Builder
+
+
+a1.sinks.k1.type = file_roll
+a1.sinks.k1.channel = ch-1
+a1.sinks.k1.sink.directory = /home/vagrant/PBDP/hw5/hw5_p4_sink
+a1.sinks.k1.sink.directory.rollInterval = 5
+```
 
 
 ## Problem 5
@@ -1318,12 +1493,88 @@ tar xzvf apache-flume-1.8.0-bin.tar.gz
 
 We modify our config to use a memory channel with larger batch writes and with a large channel capacity and write to a HDFS sink: we set these larger so that our writes to HDFS are larger and generate fewer output files, and the large channel capacity guarantees we won't lose data:
 ```
+a1.channels = ch-1
+a1.channels.ch-1.type = memory
+a1.channels.ch-1.capacity = 100000
+a1.channels.ch-1.transactionCapacity = 10000
 
+a1.sources = src-1
+a1.sources.src-1.type = exec
+a1.sources.src-1.channels = ch-1
+a1.sources.src-1.command = sudo tail -F /var/log/httpd/access_log
+
+a1.sinks = k1
+a1.sinks.k1.type = hdfs
+a1.sinks.k1.channel = ch-1
+a1.sinks.k1.hdfs.useLocalTimeStamp = true
+a1.sinks.k1.hdfs.path =  hdfs://ec2-52-14-168-153.us-east-2.compute.amazonaws.com/flume/events/%Y-%m-%d/%H-%M/
+a1.sinks.k1.hdfs.fileType = DataStream
 ```
 
 We launch the Flume agent with this config
 ```
-~/apache-flume-1.8.0-bin/bin/flume-ng agent --conf ~/apache-flume-1.8.0-bin/conf --conf-file p5.conf --name a1 -Dflume.root.logger=DEBUG,console -Dorg.apache.flume.log.printconfig=true -Dorg.apache.flume.log.rawdata=true
+$  ~/apache-flume-1.8.0-bin/bin/flume-ng agent --conf ~/apache-flume-1.8.0-bin/conf --conf-file p5.conf --name a1 -Dflume.root.logger=DEBUG,console -Dorg.apache.flume.log.printconfig=true -Dorg.apache.flume.log.rawdata=true
+Info: Including Hadoop libraries found via (/usr/bin/hadoop) for HDFS access
+Info: Including HBASE libraries found via (/usr/bin/hbase) for HBASE access
+Info: Including Hive libraries found via () for Hive access
++ exec /etc/alternatives/jre/bin/java -Xmx20m -Dflume.root.logger=DEBUG,console -Dorg.apache.flume.log.printconfig=true -Dorg.apache.flume.log.rawdata=true -cp '/home/hadoop/apache-flume-1.8.0-bin/conf:/home/hadoop/apache-flume-1.8.0-bin/lib/*:/etc/hadoop/conf:/usr/lib/hadoop/lib/*:/usr/lib/hadoop/.//*:/usr/lib/hadoop-hdfs/./:/usr/lib/hadoop-hdfs/lib/*:/usr/lib/hadoop-hdfs/.//*:/usr/lib/hadoop-yarn/lib/*:/usr/lib/hadoop-yarn/.//*:/usr/lib/hadoop-mapreduce/lib/*:/usr/lib/hadoop-mapreduce/.//*::/etc/tez/conf:/usr/lib/tez/*:/usr/lib/tez/lib/*:/usr/lib/hadoop-lzo/lib/*:/usr/share/aws/aws-java-sdk/*:/usr/share/aws/emr/emrfs/conf:/usr/share/aws/emr/emrfs/lib/*:/usr/share/aws/emr/emrfs/auxlib/*:/usr/share/aws/emr/ddb/lib/emr-ddb-hadoop.jar:/usr/share/aws/emr/goodies/lib/emr-hadoop-goodies.jar:/usr/share/aws/emr/kinesis/lib/emr-kinesis-hadoop.jar:/usr/share/aws/emr/cloudwatch-sink/lib/*:/usr/share/aws/emr/security/conf:/usr/share/aws/emr/security/lib/*:/etc/hbase/conf:/etc/alternatives/jre/lib/tools.jar:/usr/lib/hbase:/usr/lib/hbase/lib/activation-1.1.jar:/usr/lib/hbase/lib/apacheds-i18n-2.0.0-M15.jar:/usr/lib/hbase/lib/apacheds-kerberos-codec-2.0.0-M15.jar:/usr/lib/hbase/lib/api-asn1-api-1.0.0-M20.jar:/usr/lib/hbase/lib/api-util-1.0.0-M20.jar:/usr/lib/hbase/lib/asm-3.1.jar:/usr/lib/hbase/lib/avro-1.7.7.jar:/usr/lib/hbase/lib/commons-beanutils-1.7.0.jar:/usr/lib/hbase/lib/commons-beanutils-core-1.8.0.jar:/usr/lib/hbase/lib/commons-cli-1.2.jar:/usr/lib/hbase/lib/commons-codec-1.9.jar:/usr/lib/hbase/lib/commons-collections-3.2.2.jar:/usr/lib/hbase/lib/commons-compress-1.4.1.jar:/usr/lib/hbase/lib/commons-configuration-1.6.jar:/usr/lib/hbase/lib/commons-daemon-1.0.13.jar:/usr/lib/hbase/lib/commons-digester-1.8.jar:/usr/lib/hbase/lib/commons-el-1.0.jar:/usr/lib/hbase/lib/commons-httpclient-3.1.jar:/usr/lib/hbase/lib/commons-io-2.4.jar:/usr/lib/hbase/lib/commons-lang-2.6.jar:/usr/lib/hbase/lib/commons-logging-1.2.jar:/usr/lib/hbase/lib/commons-math-2.2.jar:/usr/lib/hbase/lib/commons-math3-3.1.1.jar:/usr/lib/hbase/lib/commons-net-3.1.jar:/usr/lib/hbase/lib/curator-client-2.7.1.jar:/usr/lib/hbase/lib/curator-framework-2.7.1.jar:/usr/lib/hbase/lib/curator-recipes-2.7.1.jar:/usr/lib/hbase/lib/disruptor-3.3.0.jar:/usr/lib/hbase/lib/findbugs-annotations-1.3.9-1.jar:/usr/lib/hbase/lib/gson-2.2.4.jar:/usr/lib/hbase/lib/guava-12.0.1.jar:/usr/lib/hbase/lib/hadoop-annotations.jar:/usr/lib/hbase/lib/hadoop-auth.jar:/usr/lib/hbase/lib/hadoop-common.jar:/usr/lib/hbase/lib/hadoop-hdfs-client.jar:/usr/lib/hbase/lib/hadoop-mapreduce-client-app.jar:/usr/lib/hbase/lib/hadoop-mapreduce-client-common.jar:/usr/lib/hbase/lib/hadoop-mapreduce-client-core.jar:/usr/lib/hbase/lib/hadoop-mapreduce-client-jobclient.jar:/usr/lib/hbase/lib/hadoop-mapreduce-client-shuffle.jar:/usr/lib/hbase/lib/hadoop-yarn-api.jar:/usr/lib/hbase/lib/hadoop-yarn-client.jar:/usr/lib/hbase/lib/hadoop-yarn-common.jar:/usr/lib/hbase/lib/hadoop-yarn-server-common.jar:/usr/lib/hbase/lib/hbase-annotations-1.4.0.jar:/usr/lib/hbase/lib/hbase-annotations-1.4.0-tests.jar:/usr/lib/hbase/lib/hbase-client-1.4.0.jar:/usr/lib/hbase/lib/hbase-common-1.4.0.jar:/usr/lib/hbase/lib/hbase-common-1.4.0-tests.jar:/usr/lib/hbase/lib/hbase-examples-1.4.0.jar:/usr/lib/hbase/lib/hbase-external-blockcache-1.4.0.jar:/usr/lib/hbase/lib/hbase-hadoop2-compat-1.4.0.jar:/usr/lib/hbase/lib/hbase-hadoop-compat-1.4.0.jar:/usr/lib/hbase/lib/hbase-it-1.4.0.jar:/usr/lib/hbase/lib/hbase-it-1.4.0-tests.jar:/usr/lib/hbase/lib/hbase-metrics-1.4.0.jar:/usr/lib/hbase/lib/hbase-metrics-api-1.4.0.jar:/usr/lib/hbase/lib/hbase-prefix-tree-1.4.0.jar:/usr/lib/hbase/lib/hbase-procedure-1.4.0.jar:/usr/lib/hbase/lib/hbase-protocol-1.4.0.jar:/usr/lib/hbase/lib/hbase-resource-bundle-1.4.0.jar:/usr/lib/hbase/lib/hbase-rest-1.4.0.jar:/usr/lib/hbase/lib/hbase-rsgroup-1.4.0.jar:/usr/lib/hbase/lib/hbase-server-1.4.0.jar:/usr/lib/hbase/lib/hbase-server-1.4.0-tests.jar:/usr/lib/hbase/lib/hbase-shell-1.4.0.jar:/usr/lib/hbase/lib/hbase-thrift-1.4.0.jar:/usr/lib/hbase/lib/htrace-core-3.1.0-incubating.jar:/usr/lib/hbase/lib/htrace-core4-4.0.1-incubating.jar:/usr/lib/hbase/lib/httpclient-4.5.2.jar:/usr/lib/hbase/lib/httpcore-4.4.4.jar:/usr/lib/hbase/lib/jackson-core-asl-1.9.13.jar:/usr/lib/hbase/lib/jackson-jaxrs-1.9.13.jar:/usr/lib/hbase/lib/jackson-mapper-asl-1.9.13.jar:/usr/lib/hbase/lib/jackson-xc-1.9.13.jar:/usr/lib/hbase/lib/jamon-runtime-2.4.1.jar:/usr/lib/hbase/lib/jasper-compiler-5.5.23.jar:/usr/lib/hbase/lib/jasper-runtime-5.5.23.jar:/usr/lib/hbase/lib/jaxb-api-2.2.2.jar:/usr/lib/hbase/lib/jaxb-impl-2.2.3-1.jar:/usr/lib/hbase/lib/jcip-annotations-1.0.jar:/usr/lib/hbase/lib/jcodings-1.0.8.jar:/usr/lib/hbase/lib/jersey-client-1.9.jar:/usr/lib/hbase/lib/jersey-core-1.9.jar:/usr/lib/hbase/lib/jersey-json-1.9.jar:/usr/lib/hbase/lib/jersey-server-1.9.jar:/usr/lib/hbase/lib/jettison-1.3.3.jar:/usr/lib/hbase/lib/jetty-6.1.26.jar:/usr/lib/hbase/lib/jetty-sslengine-6.1.26.jar:/usr/lib/hbase/lib/jetty-util-6.1.26.jar:/usr/lib/hbase/lib/joni-2.1.2.jar:/usr/lib/hbase/lib/jruby-complete-1.6.8.jar:/usr/lib/hbase/lib/jsch-0.1.54.jar:/usr/lib/hbase/lib/json-smart-1.1.1.jar:/usr/lib/hbase/lib/jsp-2.1-6.1.14.jar:/usr/lib/hbase/lib/jsp-api-2.1-6.1.14.jar:/usr/lib/hbase/lib/junit-4.12.jar:/usr/lib/hbase/lib/leveldbjni-all-1.8.jar:/usr/lib/hbase/lib/libthrift-0.9.3.jar:/usr/lib/hbase/lib/log4j-1.2.17.jar:/usr/lib/hbase/lib/metrics-core-2.2.0.jar:/usr/lib/hbase/lib/metrics-core-3.1.2.jar:/usr/lib/hbase/lib/netty-all-4.1.8.Final.jar:/usr/lib/hbase/lib/nimbus-jose-jwt-3.9.jar:/usr/lib/hbase/lib/okhttp-2.4.0.jar:/usr/lib/hbase/lib/okio-1.4.0.jar:/usr/lib/hbase/lib/paranamer-2.3.jar:/usr/lib/hbase/lib/protobuf-java-2.5.0.jar:/usr/lib/hbase/lib/servlet-api-2.5-6.1.14.jar:/usr/lib/hbase/lib/slf4j-api-1.6.1.jar:/usr/lib/hbase/lib/snappy-java-1.0.5.jar:/usr/lib/hbase/lib/spymemcached-2.11.6.jar:/usr/lib/hbase/lib/xmlenc-0.52.jar:/usr/lib/hbase/lib/xz-1.0.jar:/usr/lib/hbase/lib/zookeeper.jar:/etc/hadoop/conf:/usr/lib/hadoop/lib/*:/usr/lib/hadoop/.//*:/usr/lib/hadoop-hdfs/./:/usr/lib/hadoop-hdfs/lib/*:/usr/lib/hadoop-hdfs/.//*:/usr/lib/hadoop-yarn/lib/*:/usr/lib/hadoop-yarn/.//*:/usr/lib/hadoop-mapreduce/lib/*:/usr/lib/hadoop-mapreduce/.//*::/etc/tez/conf:/usr/lib/tez/*:/usr/lib/tez/lib/*:/usr/lib/hadoop-lzo/lib/*:/usr/share/aws/aws-java-sdk/*:/usr/share/aws/emr/emrfs/conf:/usr/share/aws/emr/emrfs/lib/*:/usr/share/aws/emr/emrfs/auxlib/*:/usr/share/aws/emr/ddb/lib/emr-ddb-hadoop.jar:/usr/share/aws/emr/goodies/lib/emr-hadoop-goodies.jar:/usr/share/aws/emr/kinesis/lib/emr-kinesis-hadoop.jar:/usr/share/aws/emr/cloudwatch-sink/lib/*:/usr/share/aws/emr/security/conf:/usr/share/aws/emr/security/lib/*:/etc/hadoop/conf:/*:/lib/*:/usr/lib/zookeeper/*::/conf:/lib/*' -Djava.library.path=::/usr/lib/hadoop-lzo/lib/native:/usr/lib/hadoop/lib/native::/usr/lib/hadoop-lzo/lib/native:/usr/lib/hadoop/lib/native org.apache.flume.node.Application --conf-file p5.conf --name a1
+SLF4J: Class path contains multiple SLF4J bindings.
+SLF4J: Found binding in [jar:file:/home/hadoop/apache-flume-1.8.0-bin/lib/slf4j-log4j12-1.6.1.jar!/org/slf4j/impl/StaticLoggerBinder.class]
+SLF4J: Found binding in [jar:file:/usr/lib/hadoop/lib/slf4j-log4j12-1.7.10.jar!/org/slf4j/impl/StaticLoggerBinder.class]
+SLF4J: See http://www.slf4j.org/codes.html#multiple_bindings for an explanation.
+2018-03-03 16:40:53,936 (lifecycleSupervisor-1-0) [INFO - org.apache.flume.node.PollingPropertiesFileConfigurationProvider.start(PollingPropertiesFileConfigurationProvider.java:62)] Configuration provider starting
+2018-03-03 16:40:53,940 (lifecycleSupervisor-1-0) [DEBUG - org.apache.flume.node.PollingPropertiesFileConfigurationProvider.start(PollingPropertiesFileConfigurationProvider.java:79)] Configuration provider started
+2018-03-03 16:40:53,945 (conf-file-poller-0) [DEBUG - org.apache.flume.node.PollingPropertiesFileConfigurationProvider$FileWatcherRunnable.run(PollingPropertiesFileConfigurationProvider.java:127)] Checking file:p5.conf for changes
+2018-03-03 16:40:53,945 (conf-file-poller-0) [INFO - org.apache.flume.node.PollingPropertiesFileConfigurationProvider$FileWatcherRunnable.run(PollingPropertiesFileConfigurationProvider.java:134)] Reloading configuration file:p5.conf
+2018-03-03 16:40:53,954 (conf-file-poller-0) [INFO - org.apache.flume.conf.FlumeConfiguration$AgentConfiguration.addProperty(FlumeConfiguration.java:930)] Added sinks: k1 Agent: a1
+2018-03-03 16:40:53,954 (conf-file-poller-0) [INFO - org.apache.flume.conf.FlumeConfiguration$AgentConfiguration.addProperty(FlumeConfiguration.java:1016)] Processing:k1
+2018-03-03 16:40:53,954 (conf-file-poller-0) [DEBUG - org.apache.flume.conf.FlumeConfiguration$AgentConfiguration.addProperty(FlumeConfiguration.java:1020)] Created context for k1: channel
+2018-03-03 16:40:53,954 (conf-file-poller-0) [INFO - org.apache.flume.conf.FlumeConfiguration$AgentConfiguration.addProperty(FlumeConfiguration.java:1016)] Processing:k1
+2018-03-03 16:40:53,954 (conf-file-poller-0) [INFO - org.apache.flume.conf.FlumeConfiguration$AgentConfiguration.addProperty(FlumeConfiguration.java:1016)] Processing:k1
+2018-03-03 16:40:53,955 (conf-file-poller-0) [INFO - org.apache.flume.conf.FlumeConfiguration$AgentConfiguration.addProperty(FlumeConfiguration.java:1016)] Processing:k1
+2018-03-03 16:40:53,955 (conf-file-poller-0) [INFO - org.apache.flume.conf.FlumeConfiguration$AgentConfiguration.addProperty(FlumeConfiguration.java:1016)] Processing:k1
+2018-03-03 16:40:53,955 (conf-file-poller-0) [DEBUG - org.apache.flume.conf.FlumeConfiguration$AgentConfiguration.isValid(FlumeConfiguration.java:313)] Starting validation of configuration for agent: a1
+2018-03-03 16:40:53,956 (conf-file-poller-0) [WARN - org.apache.flume.conf.LogPrivacyUtil.<clinit>(LogPrivacyUtil.java:45)] Logging of configuration details of the agent has been turned on by setting org.apache.flume.log.printconfig to true. Please use this setting with extra caution as it may result in logging of private data. This setting is not recommended in production environments.
+2018-03-03 16:40:53,956 (conf-file-poller-0) [WARN - org.apache.flume.conf.LogPrivacyUtil.<clinit>(LogPrivacyUtil.java:59)] Logging raw data has been turned on by setting org.apache.flume.log.rawdata to true. Please use it with extra caution as it may result in logging of potentially sensitive user data. This setting is not recommended in production environments.
+2018-03-03 16:40:53,957 (conf-file-poller-0) [DEBUG - org.apache.flume.conf.FlumeConfiguration$AgentConfiguration.isValid(FlumeConfiguration.java:315)] Initial configuration: AgentConfiguration[a1]
+SOURCES: {src-1={ parameters:{channels=ch-1, type=exec, command=sudo tail -F /var/log/httpd/access_log} }}
+CHANNELS: {ch-1={ parameters:{type=memory, transactionCapacity=10000, capacity=100000} }}
+SINKS: {k1={ parameters:{hdfs.path=hdfs://ec2-52-14-168-153.us-east-2.compute.amazonaws.com/flume/events/%Y-%m-%d/%H-%M/, channel=ch-1, hdfs.fileType=DataStream, type=hdfs, hdfs.useLocalTimeStamp=true} }}
+
+2018-03-03 16:40:53,962 (conf-file-poller-0) [DEBUG - org.apache.flume.conf.FlumeConfiguration$AgentConfiguration.validateChannels(FlumeConfiguration.java:467)] Created channel ch-1
+2018-03-03 16:40:53,971 (conf-file-poller-0) [DEBUG - org.apache.flume.conf.FlumeConfiguration$AgentConfiguration.validateSinks(FlumeConfiguration.java:674)] Creating sink: k1 using HDFS
+2018-03-03 16:40:53,973 (conf-file-poller-0) [DEBUG - org.apache.flume.conf.FlumeConfiguration$AgentConfiguration.isValid(FlumeConfiguration.java:373)] Post validation configuration for a1
+2018-03-03 16:40:53,973 (conf-file-poller-0) [DEBUG - org.apache.flume.conf.FlumeConfiguration$AgentConfiguration.isValid(FlumeConfiguration.java:374)] AgentConfiguration created without Configuration stubs for which only basic syntactical validation was performed[a1]
+SOURCES: {src-1={ parameters:{channels=ch-1, type=exec, command=sudo tail -F /var/log/httpd/access_log} }}
+CHANNELS: {ch-1={ parameters:{type=memory, transactionCapacity=10000, capacity=100000} }}
+SINKS: {k1={ parameters:{hdfs.path=hdfs://ec2-52-14-168-153.us-east-2.compute.amazonaws.com/flume/events/%Y-%m-%d/%H-%M/, channel=ch-1, hdfs.fileType=DataStream, type=hdfs, hdfs.useLocalTimeStamp=true} }}
+
+2018-03-03 16:40:53,974 (conf-file-poller-0) [DEBUG - org.apache.flume.conf.FlumeConfiguration.validateConfiguration(FlumeConfiguration.java:135)] Channels:ch-1
+
+2018-03-03 16:40:53,974 (conf-file-poller-0) [DEBUG - org.apache.flume.conf.FlumeConfiguration.validateConfiguration(FlumeConfiguration.java:136)] Sinks k1
+
+2018-03-03 16:40:53,974 (conf-file-poller-0) [DEBUG - org.apache.flume.conf.FlumeConfiguration.validateConfiguration(FlumeConfiguration.java:137)] Sources src-1
+
+2018-03-03 16:40:53,974 (conf-file-poller-0) [INFO - org.apache.flume.conf.FlumeConfiguration.validateConfiguration(FlumeConfiguration.java:140)] Post-validation flume configuration contains configuration for agents: [a1]
+2018-03-03 16:40:53,974 (conf-file-poller-0) [INFO - org.apache.flume.node.AbstractConfigurationProvider.loadChannels(AbstractConfigurationProvider.java:147)] Creating channels
+2018-03-03 16:40:53,980 (conf-file-poller-0) [INFO - org.apache.flume.channel.DefaultChannelFactory.create(DefaultChannelFactory.java:42)] Creating instance of channel ch-1 type memory
+2018-03-03 16:40:53,985 (conf-file-poller-0) [INFO - org.apache.flume.node.AbstractConfigurationProvider.loadChannels(AbstractConfigurationProvider.java:201)] Created channel ch-1
+2018-03-03 16:40:53,986 (conf-file-poller-0) [INFO - org.apache.flume.source.DefaultSourceFactory.create(DefaultSourceFactory.java:41)] Creating instance of source src-1, type exec
+2018-03-03 16:40:53,992 (conf-file-poller-0) [INFO - org.apache.flume.sink.DefaultSinkFactory.create(DefaultSinkFactory.java:42)] Creating instance of sink: k1, type: hdfs
+2018-03-03 16:40:54,003 (conf-file-poller-0) [INFO - org.apache.flume.node.AbstractConfigurationProvider.getConfiguration(AbstractConfigurationProvider.java:116)] Channel ch-1 connected to [src-1, k1]
+2018-03-03 16:40:54,012 (conf-file-poller-0) [INFO - org.apache.flume.node.Application.startAllComponents(Application.java:137)] Starting new configuration:{ sourceRunners:{src-1=EventDrivenSourceRunner: { source:org.apache.flume.source.ExecSource{name:src-1,state:IDLE} }} sinkRunners:{k1=SinkRunner: { policy:org.apache.flume.sink.DefaultSinkProcessor@1433203d counterGroup:{ name:null counters:{} } }} channels:{ch-1=org.apache.flume.channel.MemoryChannel{name: ch-1}} }
+2018-03-03 16:40:54,021 (conf-file-poller-0) [INFO - org.apache.flume.node.Application.startAllComponents(Application.java:144)] Starting Channel ch-1
+2018-03-03 16:40:54,082 (lifecycleSupervisor-1-0) [INFO - org.apache.flume.instrumentation.MonitoredCounterGroup.register(MonitoredCounterGroup.java:119)] Monitored counter group for type: CHANNEL, name: ch-1: Successfully registered new MBean.
+2018-03-03 16:40:54,083 (lifecycleSupervisor-1-0) [INFO - org.apache.flume.instrumentation.MonitoredCounterGroup.start(MonitoredCounterGroup.java:95)] Component type: CHANNEL, name: ch-1 started
+2018-03-03 16:40:54,083 (conf-file-poller-0) [INFO - org.apache.flume.node.Application.startAllComponents(Application.java:171)] Starting Sink k1
+2018-03-03 16:40:54,085 (conf-file-poller-0) [INFO - org.apache.flume.node.Application.startAllComponents(Application.java:182)] Starting Source src-1
+2018-03-03 16:40:54,085 (lifecycleSupervisor-1-0) [INFO - org.apache.flume.instrumentation.MonitoredCounterGroup.register(MonitoredCounterGroup.java:119)] Monitored counter group for type: SINK, name: k1: Successfully registered new MBean.
+2018-03-03 16:40:54,085 (lifecycleSupervisor-1-0) [INFO - org.apache.flume.instrumentation.MonitoredCounterGroup.start(MonitoredCounterGroup.java:95)] Component type: SINK, name: k1 started
+2018-03-03 16:40:54,087 (lifecycleSupervisor-1-4) [INFO - org.apache.flume.source.ExecSource.start(ExecSource.java:168)] Exec source starting with command: sudo tail -F /var/log/httpd/access_log
+2018-03-03 16:40:54,087 (lifecycleSupervisor-1-4) [INFO - org.apache.flume.instrumentation.MonitoredCounterGroup.register(MonitoredCounterGroup.java:119)] Monitored counter group for type: SOURCE, name: src-1: Successfully registered new MBean.
+2018-03-03 16:40:54,087 (lifecycleSupervisor-1-4) [INFO - org.apache.flume.instrumentation.MonitoredCounterGroup.start(MonitoredCounterGroup.java:95)] Component type: SOURCE, name: src-1 started
+2018-03-03 16:40:54,091 (lifecycleSupervisor-1-4) [DEBUG - org.apache.flume.source.ExecSource.start(ExecSource.java:183)] Exec source started
+2018-03-03 16:40:54,092 (SinkRunner-PollingRunner-DefaultSinkProcessor) [DEBUG - org.apache.flume.SinkRunner$PollingRunner.run(SinkRunner.java:141)] Polling sink runner starting
 ```
 
 In a separate session the generator script creates logs at 100 mps for 3 minutes.
@@ -1332,13 +1583,926 @@ In a separate session the generator script creates logs at 100 mps for 3 minutes
 ps aux | grep p2_generator.sh | awk '{{print $2}}' | xargs kill
 ```
 
-While the script is running, we start to see events appearing in our HDFS sink:
+While the script is running, we start to see events appearing in our HDFS sink placed in separate directories based on the minute:
 ```
+$ hadoop fs -ls -R /flume
+drwxr-xr-x   - hadoop hadoop          0 2018-03-03 16:41 /flume/events
+drwxr-xr-x   - hadoop hadoop          0 2018-03-03 16:42 /flume/events/2018-03-03
+drwxr-xr-x   - hadoop hadoop          0 2018-03-03 16:41 /flume/events/2018-03-03/16-41
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:41 /flume/events/2018-03-03/16-41/FlumeData.1520095316124
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:41 /flume/events/2018-03-03/16-41/FlumeData.1520095316125
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:41 /flume/events/2018-03-03/16-41/FlumeData.1520095316126
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:41 /flume/events/2018-03-03/16-41/FlumeData.1520095316127
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:41 /flume/events/2018-03-03/16-41/FlumeData.1520095316128
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:41 /flume/events/2018-03-03/16-41/FlumeData.1520095316129
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:41 /flume/events/2018-03-03/16-41/FlumeData.1520095316130
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:41 /flume/events/2018-03-03/16-41/FlumeData.1520095316131
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:41 /flume/events/2018-03-03/16-41/FlumeData.1520095316132
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:41 /flume/events/2018-03-03/16-41/FlumeData.1520095316133
+-rw-r--r--   1 hadoop hadoop         87 2018-03-03 16:41 /flume/events/2018-03-03/16-41/FlumeData.1520095316134.tmp
+drwxr-xr-x   - hadoop hadoop          0 2018-03-03 16:42 /flume/events/2018-03-03/16-42
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320008
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320009
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320010
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320011
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320012
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320013
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320014
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320015
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320016
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320017
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320018
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320019
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320020
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320021
 ```
 
+The Flume agent also reports on its work creating output in HDFS:
+```
+2018-03-03 16:42:54,248 (hdfs-k1-call-runner-6) [DEBUG - org.apache.flume.sink.hdfs.AbstractHDFSWriter.reflectGetNumCurrentReplicas(AbstractHDFSWriter.java:200)] Using getNumCurrentReplicas--HDFS-826
+2018-03-03 16:42:54,248 (hdfs-k1-call-runner-6) [DEBUG - org.apache.flume.sink.hdfs.AbstractHDFSWriter.reflectGetDefaultReplication(AbstractHDFSWriter.java:228)] Using FileSystem.getDefaultReplication(Path) from HADOOP-8014
+2018-03-03 16:42:54,249 (SinkRunner-PollingRunner-DefaultSinkProcessor) [DEBUG - org.apache.flume.sink.hdfs.BucketWriter.shouldRotate(BucketWriter.java:618)] rolling: rollCount: 10, events: 10
+2018-03-03 16:42:54,253 (SinkRunner-PollingRunner-DefaultSinkProcessor) [INFO - org.apache.flume.sink.hdfs.BucketWriter.close(BucketWriter.java:393)] Closing hdfs://ec2-52-14-168-153.us-east-2.compute.amazonaws.com/flume/events/2018-03-03/16-42//FlumeData.1520095320256.tmp
+2018-03-03 16:42:54,255 (hdfs-k1-call-runner-0) [INFO - org.apache.flume.sink.hdfs.BucketWriter$8.call(BucketWriter.java:655)] Renaming hdfs://ec2-52-14-168-153.us-east-2.compute.amazonaws.com/flume/events/2018-03-03/16-42/FlumeData.1520095320256.tmp to hdfs://ec2-52-14-168-153.us-east-2.compute.amazonaws.com/flume/events/2018-03-03/16-42/FlumeData.1520095320256
+2018-03-03 16:42:54,273 (SinkRunner-PollingRunner-DefaultSinkProcessor) [INFO - org.apache.flume.sink.hdfs.BucketWriter.open(BucketWriter.java:251)] Creating hdfs://ec2-52-14-168-153.us-east-2.compute.amazonaws.com/flume/events/2018-03-03/16-42//FlumeData.1520095320257.tmp
+```
 
+After all write complete, HDFS shows the data separated into folders based on minute:
+```
+$ hadoop fs -ls -R /flume
+drwxr-xr-x   - hadoop hadoop          0 2018-03-03 16:41 /flume/events
+drwxr-xr-x   - hadoop hadoop          0 2018-03-03 16:45 /flume/events/2018-03-03
+drwxr-xr-x   - hadoop hadoop          0 2018-03-03 16:42 /flume/events/2018-03-03/16-41
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:41 /flume/events/2018-03-03/16-41/FlumeData.1520095316124
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:41 /flume/events/2018-03-03/16-41/FlumeData.1520095316125
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:41 /flume/events/2018-03-03/16-41/FlumeData.1520095316126
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:41 /flume/events/2018-03-03/16-41/FlumeData.1520095316127
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:41 /flume/events/2018-03-03/16-41/FlumeData.1520095316128
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:41 /flume/events/2018-03-03/16-41/FlumeData.1520095316129
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:41 /flume/events/2018-03-03/16-41/FlumeData.1520095316130
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:41 /flume/events/2018-03-03/16-41/FlumeData.1520095316131
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:41 /flume/events/2018-03-03/16-41/FlumeData.1520095316132
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:41 /flume/events/2018-03-03/16-41/FlumeData.1520095316133
+-rw-r--r--   1 hadoop hadoop         87 2018-03-03 16:42 /flume/events/2018-03-03/16-41/FlumeData.1520095316134
+drwxr-xr-x   - hadoop hadoop          0 2018-03-03 16:43 /flume/events/2018-03-03/16-42
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320008
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320009
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320010
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320011
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320012
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320013
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320014
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320015
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320016
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320017
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320018
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320019
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320020
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320021
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320022
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320023
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320024
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320025
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320026
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320027
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320028
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320029
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320030
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320031
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320032
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320033
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320034
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320035
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320036
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320037
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320038
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320039
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320040
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320041
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320042
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320043
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320044
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320045
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320046
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320047
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320048
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320049
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320050
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320051
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320052
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320053
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320054
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320055
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320056
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320057
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320058
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320059
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320060
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320061
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320062
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320063
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320064
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320065
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320066
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320067
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320068
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320069
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320070
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320071
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320072
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320073
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320074
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320075
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320076
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320077
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320078
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320079
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320080
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320081
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320082
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320083
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320084
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320085
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320086
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320087
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320088
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320089
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320090
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320091
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320092
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320093
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320094
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320095
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320096
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320097
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320098
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320099
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320100
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320101
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320102
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320103
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320104
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320105
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320106
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320107
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320108
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320109
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320110
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320111
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320112
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320113
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320114
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320115
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320116
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320117
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320118
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320119
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320120
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320121
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320122
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320123
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320124
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320125
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320126
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320127
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320128
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320129
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320130
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320131
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320132
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320133
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320134
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320135
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320136
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320137
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320138
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320139
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320140
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320141
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320142
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320143
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320144
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320145
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320146
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320147
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320148
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320149
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320150
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320151
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320152
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320153
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320154
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320155
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320156
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320157
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320158
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320159
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320160
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320161
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320162
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320163
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320164
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320165
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320166
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320167
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320168
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320169
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320170
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320171
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320172
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320173
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320174
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320175
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320176
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320177
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320178
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320179
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320180
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320181
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320182
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320183
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320184
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320185
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320186
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320187
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320188
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320189
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320190
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320191
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320192
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320193
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320194
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320195
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320196
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320197
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320198
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320199
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320200
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320201
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320202
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320203
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320204
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320205
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320206
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320207
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320208
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320209
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320210
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320211
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320212
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320213
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320214
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320215
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320216
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320217
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320218
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320219
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320220
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320221
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320222
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320223
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320224
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320225
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320226
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320227
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320228
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320229
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320230
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320231
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320232
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320233
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320234
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320235
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320236
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320237
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320238
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320239
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320240
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320241
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320242
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320243
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320244
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320245
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320246
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320247
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320248
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320249
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320250
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320251
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320252
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320253
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320254
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320255
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320256
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320257
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320258
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320259
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320260
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320261
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320262
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320263
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320264
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320265
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320266
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320267
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320268
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320269
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320270
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320271
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320272
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320273
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320274
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320275
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320276
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320277
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320278
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320279
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:42 /flume/events/2018-03-03/16-42/FlumeData.1520095320280
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-42/FlumeData.1520095320281
+-rw-r--r--   1 hadoop hadoop         87 2018-03-03 16:43 /flume/events/2018-03-03/16-42/FlumeData.1520095320282
+drwxr-xr-x   - hadoop hadoop          0 2018-03-03 16:44 /flume/events/2018-03-03/16-43
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380214
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380215
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380216
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380217
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380218
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380219
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380220
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380221
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380222
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380223
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380224
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380225
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380226
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380227
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380228
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380229
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380230
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380231
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380232
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380233
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380234
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380235
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380236
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380237
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380238
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380239
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380240
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380241
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380242
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380243
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380244
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380245
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380246
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380247
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380248
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380249
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380250
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380251
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380252
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380253
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380254
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380255
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380256
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380257
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380258
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380259
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380260
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380261
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380262
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380263
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380264
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380265
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380266
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380267
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380268
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380269
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380270
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380271
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380272
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380273
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380274
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380275
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380276
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380277
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380278
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380279
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380280
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380281
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380282
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380283
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380284
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380285
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380286
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380287
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380288
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380289
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380290
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380291
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380292
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380293
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380294
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380295
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380296
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380297
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380298
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380299
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380300
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380301
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380302
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380303
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380304
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380305
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380306
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380307
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380308
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380309
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380310
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380311
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380312
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380313
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380314
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380315
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380316
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380317
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380318
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380319
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380320
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380321
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380322
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380323
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380324
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380325
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380326
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380327
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380328
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380329
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380330
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380331
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380332
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380333
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380334
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380335
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380336
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380337
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380338
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380339
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380340
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380341
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380342
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380343
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380344
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380345
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380346
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380347
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380348
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380349
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380350
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380351
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380352
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380353
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380354
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380355
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380356
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380357
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380358
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380359
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380360
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380361
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380362
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380363
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380364
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380365
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380366
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380367
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380368
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380369
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380370
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380371
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380372
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380373
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380374
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380375
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380376
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380377
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380378
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380379
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380380
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380381
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380382
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380383
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380384
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380385
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380386
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380387
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380388
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380389
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380390
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380391
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380392
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380393
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380394
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380395
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380396
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380397
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380398
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380399
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380400
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380401
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380402
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380403
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380404
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380405
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380406
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380407
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380408
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380409
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380410
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380411
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380412
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380413
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380414
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380415
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380416
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380417
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380418
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380419
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380420
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380421
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380422
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380423
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380424
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:43 /flume/events/2018-03-03/16-43/FlumeData.1520095380425
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-43/FlumeData.1520095380426
+-rw-r--r--   1 hadoop hadoop         87 2018-03-03 16:44 /flume/events/2018-03-03/16-43/FlumeData.1520095380427
+drwxr-xr-x   - hadoop hadoop          0 2018-03-03 16:45 /flume/events/2018-03-03/16-44
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440204
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440205
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440206
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440207
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440208
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440209
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440210
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440211
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440212
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440213
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440214
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440215
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440216
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440217
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440218
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440219
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440220
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440221
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440222
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440223
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440224
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440225
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440226
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440227
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440228
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440229
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440230
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440231
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440232
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440233
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440234
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440235
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440236
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440237
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440238
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440239
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440240
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440241
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440242
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440243
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440244
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440245
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440246
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440247
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440248
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440249
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440250
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440251
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440252
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440253
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440254
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440255
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440256
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440257
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440258
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440259
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440260
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440261
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440262
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440263
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440264
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440265
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440266
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440267
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440268
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440269
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440270
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440271
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440272
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440273
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440274
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440275
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440276
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440277
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440278
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440279
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440280
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440281
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440282
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440283
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440284
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440285
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440286
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440287
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440288
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440289
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440290
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440291
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440292
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440293
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440294
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440295
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440296
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440297
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440298
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440299
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440300
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440301
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440302
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440303
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440304
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440305
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440306
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440307
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440308
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440309
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440310
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440311
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440312
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440313
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440314
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440315
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440316
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440317
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440318
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440319
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440320
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440321
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440322
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440323
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440324
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440325
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440326
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440327
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440328
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440329
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440330
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440331
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440332
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440333
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440334
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440335
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440336
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440337
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440338
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440339
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440340
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440341
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440342
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440343
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440344
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440345
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440346
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440347
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440348
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440349
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440350
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440351
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440352
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440353
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440354
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440355
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440356
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440357
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440358
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440359
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440360
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440361
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440362
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440363
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440364
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440365
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440366
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440367
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440368
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440369
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440370
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440371
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440372
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440373
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440374
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440375
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440376
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440377
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440378
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440379
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440380
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440381
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440382
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440383
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440384
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440385
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440386
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440387
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440388
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440389
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:44 /flume/events/2018-03-03/16-44/FlumeData.1520095440390
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-44/FlumeData.1520095440391
+-rw-r--r--   1 hadoop hadoop         87 2018-03-03 16:45 /flume/events/2018-03-03/16-44/FlumeData.1520095440392
+drwxr-xr-x   - hadoop hadoop          0 2018-03-03 16:46 /flume/events/2018-03-03/16-45
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500142
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500143
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500144
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500145
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500146
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500147
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500148
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500149
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500150
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500151
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500152
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500153
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500154
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500155
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500156
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500157
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500158
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500159
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500160
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500161
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500162
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500163
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500164
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500165
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500166
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500167
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500168
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500169
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500170
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500171
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500172
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500173
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500174
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500175
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500176
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500177
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500178
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500179
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500180
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500181
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500182
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500183
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500184
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500185
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500186
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500187
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500188
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500189
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500190
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500191
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500192
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500193
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500194
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500195
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500196
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500197
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500198
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500199
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500200
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500201
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500202
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500203
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500204
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500205
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500206
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500207
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500208
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500209
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500210
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500211
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500212
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500213
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500214
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500215
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500216
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500217
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500218
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500219
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500220
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500221
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500222
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500223
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500224
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500225
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500226
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500227
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500228
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500229
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500230
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500231
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500232
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500233
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500234
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500235
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500236
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500237
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500238
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500239
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500240
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500241
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500242
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500243
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500244
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500245
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500246
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500247
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500248
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500249
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500250
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500251
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500252
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500253
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500254
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500255
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500256
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500257
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500258
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500259
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500260
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500261
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500262
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500263
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500264
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500265
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500266
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500267
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500268
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500269
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500270
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500271
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500272
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500273
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500274
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500275
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500276
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500277
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500278
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500279
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500280
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:45 /flume/events/2018-03-03/16-45/FlumeData.1520095500281
+-rw-r--r--   1 hadoop hadoop        435 2018-03-03 16:46 /flume/events/2018-03-03/16-45/FlumeData.1520095500282
+```
 
-~/apache-flume-1.8.0-bin/bin/flume-ng agent --conf ~/apache-flume-1.8.0-bin/conf --conf-file p4.conf --name a1 -Dflume.root.logger=INFO,console
+We fetch the results from out sink out of HDFS:
+```
+for file in `hadoop fs  -ls -R /flume | awk '$2!="-" {print $8}'`; do
+hadoop fs -cat $file >> ~/output.txt; done
+```
+This fetch process is very slow and inefficient, so we wouldn't want to do anything like this for a production job. But we see that all the data made it into our sink:
+```
+$ sudo wc -l /var/log/httpd/access_log
+8259 /var/log/httpd/access_log
+]$ sudo wc -l ~/output.txt
+8259 /home/hadoop/output.txt
+$ tail ~/output.txt
+127.0.0.1 - - [03/Mar/2018:16:44:52 +0000] "GET / HTTP/1.1" 403 4891 "-" "curl/7.53.1"
+127.0.0.1 - - [03/Mar/2018:16:44:52 +0000] "GET / HTTP/1.1" 403 4891 "-" "curl/7.53.1"
+127.0.0.1 - - [03/Mar/2018:16:44:52 +0000] "GET / HTTP/1.1" 403 4891 "-" "curl/7.53.1"
+127.0.0.1 - - [03/Mar/2018:16:44:52 +0000] "GET / HTTP/1.1" 403 4891 "-" "curl/7.53.1"
+127.0.0.1 - - [03/Mar/2018:16:44:52 +0000] "GET / HTTP/1.1" 403 4891 "-" "curl/7.53.1"
+127.0.0.1 - - [03/Mar/2018:16:44:52 +0000] "GET / HTTP/1.1" 403 4891 "-" "curl/7.53.1"
+127.0.0.1 - - [03/Mar/2018:16:44:52 +0000] "GET / HTTP/1.1" 403 4891 "-" "curl/7.53.1"
+127.0.0.1 - - [03/Mar/2018:16:44:52 +0000] "GET / HTTP/1.1" 403 4891 "-" "curl/7.53.1"
+127.0.0.1 - - [03/Mar/2018:16:44:52 +0000] "GET / HTTP/1.1" 403 4891 "-" "curl/7.53.1"
+127.0.0.1 - - [03/Mar/2018:16:44:52 +0000] "GET / HTTP/1.1" 403 4891 "-" "curl/7.53.1"
+$ hadoop fs -cat /flume/events/2018-03-03/16-43/* | tail
+127.0.0.1 - - [03/Mar/2018:16:43:43 +0000] "GET / HTTP/1.1" 403 4891 "-" "curl/7.53.1"
+127.0.0.1 - - [03/Mar/2018:16:43:44 +0000] "GET / HTTP/1.1" 403 4891 "-" "curl/7.53.1"
+127.0.0.1 - - [03/Mar/2018:16:43:44 +0000] "GET / HTTP/1.1" 403 4891 "-" "curl/7.53.1"
+127.0.0.1 - - [03/Mar/2018:16:43:44 +0000] "GET / HTTP/1.1" 403 4891 "-" "curl/7.53.1"
+127.0.0.1 - - [03/Mar/2018:16:43:44 +0000] "GET / HTTP/1.1" 403 4891 "-" "curl/7.53.1"
+127.0.0.1 - - [03/Mar/2018:16:43:44 +0000] "GET / HTTP/1.1" 403 4891 "-" "curl/7.53.1"
+127.0.0.1 - - [03/Mar/2018:16:43:44 +0000] "GET / HTTP/1.1" 403 4891 "-" "curl/7.53.1"
+127.0.0.1 - - [03/Mar/2018:16:43:44 +0000] "GET / HTTP/1.1" 403 4891 "-" "curl/7.53.1"
+127.0.0.1 - - [03/Mar/2018:16:43:44 +0000] "GET / HTTP/1.1" 403 4891 "-" "curl/7.53.1"
+127.0.0.1 - - [03/Mar/2018:16:43:44 +0000] "GET / HTTP/1.1" 403 4891 "-" "curl/7.53.1"
+```
 
 
 ~/apache-flume-1.8.0-bin/bin/flume-ng agent --conf ~/apache-flume-1.8.0-bin/conf --conf-file p4.conf --name a1 -Dflume.root.logger=DEBUG,console -Dorg.apache.flume.log.printconfig=true -Dorg.apache.flume.log.rawdata=true
