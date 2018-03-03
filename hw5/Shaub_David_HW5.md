@@ -2,7 +2,7 @@
 title: Homework 5
 author: David Shaub
 geometry: margin=2cm
-date: 2018-02-24
+date: 2018-03-03
 ---
 
 All problems were completed, including problem 5.
@@ -1311,14 +1311,31 @@ $ wc -l hw5_p3_sink/*
 We install Apache from the repos and download Flume to our home directory:
 ```
 sudo yum install -y hddpd
-sudo systemctl start httpd
+sudo service httpd start
 wget http://apache.cs.utah.edu/flume/1.8.0/apache-flume-1.8.0-bin.tar.gz
-tar xzvf /apache-flume-1.8.0-bin.tar.gz
+tar xzvf apache-flume-1.8.0-bin.tar.gz
 ```
 
 We modify our Problem 3 config file slightly to use the HDFS sink.
 ```
+a1.channels = ch-1
+a1.channels.ch-1.type = file
+a1.channels.ch-1.capacity = 100
+a1.channels.ch-1.transactionCapacity = 100
+a1.channels.ch-1.checkpointDir = /home/hadoop/PBDP/hw5/hw5_p5_checkpoint
+a1.channels.ch-1.dataDirs = /home/hadoop/PBDP/hw5/hw5_p5_datadir
+a1.sources = src-1
+a1.sinks = k1
 
+a1.sources.src-1.type = exec
+a1.sources.src-1.channels = ch-1
+a1.sources.src-1.command = sudo tail -F /var/log/httpd/access_log
+
+a1.sinks.k1.type = hdfs
+a1.sinks.k1.channel = ch-1
+a1.sinks.k1.hdfs.useLocalTimeStamp = true
+a1.sinks.k1.hdfs.path =  hdfs://ec2-52-14-168-153.us-east-2.compute.amazonaws.com/flume/events/%Y-%m-%d/%H-%M/
+a1.sinks.k1.hdfs.fileType = DataStream
 ```
 
 We launch the Flume agent with this config
@@ -1330,6 +1347,23 @@ In a separate session the generator script creates logs at 100 mps for 3 minutes
 ```
 ./p2_generator.sh 100 & sleep 180
 ps aux | grep p2_generator.sh | awk '{{print $2}}' | xargs kill
+```
+
+While the script is running, we start to see events appearing in our HDFS sink:
+```
+$ hadoop fs -ls -R /flume
+drwxr-xr-x   - hadoop hadoop          0 2018-03-03 16:25 /flume/events
+drwxr-xr-x   - hadoop hadoop          0 2018-03-03 16:25 /flume/events/2018-03-03
+drwxr-xr-x   - hadoop hadoop          0 2018-03-03 16:25 /flume/events/2018-03-03/16-25
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:25 /flume/events/2018-03-03/16-25/FlumeData.1520094304086
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:25 /flume/events/2018-03-03/16-25/FlumeData.1520094304087
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:25 /flume/events/2018-03-03/16-25/FlumeData.1520094304088
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:25 /flume/events/2018-03-03/16-25/FlumeData.1520094304089
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:25 /flume/events/2018-03-03/16-25/FlumeData.1520094304090
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:25 /flume/events/2018-03-03/16-25/FlumeData.1520094304091
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:25 /flume/events/2018-03-03/16-25/FlumeData.1520094304092
+-rw-r--r--   1 hadoop hadoop        870 2018-03-03 16:25 /flume/events/2018-03-03/16-25/FlumeData.1520094304093
+-rw-r--r--   1 hadoop hadoop        174 2018-03-03 16:25 /flume/events/2018-03-03/16-25/FlumeData.1520094304094.tmp
 ```
 
 
