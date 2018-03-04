@@ -1593,6 +1593,65 @@ $ cat hw5_p4_sink/* | tail
 ::1 - - [02/Mar/2018:14:18:27 +0000] "GET / HTTP/1.1" 200 85 "-" "curl/7.29.0"
 ```
 
+So we create another sink (this time of logger type), and make a configuration file `p4_parallel.conf`:
+```
+a1.channels = ch-1
+a1.sources = src-1
+a1.sinks = k1 k2
+
+
+a1.channels.ch-1.type = file
+a1.channels.ch-1.capacity = 100
+a1.channels.ch-1.transactionCapacity = 100
+a1.channels.ch-1.checkpointDir = /home/vagrant/PBDP/hw5/hw5_p4_checkpoint
+a1.channels.ch-1.dataDirs = /home/vagrant/PBDP/hw5/hw5_p4_datadir
+
+
+a1.sources.src-1.type = exec
+a1.sources.src-1.channels = ch-1
+a1.sources.src-1.command = sudo tail -F /var/log/httpd/access_log
+a1.sources.src-1.interceptors = i1
+a1.sources.src-1.interceptors.i1.type = org.apache.flume.sink.solr.morphline.UUIDInterceptor$Builder
+
+
+a1.sinks.k1.type = file_roll
+a1.sinks.k1.channel = ch-1
+a1.sinks.k1.sink.directory = /home/vagrant/PBDP/hw5/hw5_p4_sink
+a1.sinks.k1.sink.directory.rollInterval = 5
+
+
+a1.sinks.k2.channel = ch-1
+a1.sinks.k2.type = logger
+```
+
+
+Now we see our Flume agent log output the UUIDs:
+```
+2018-03-02 15:16:09,905 (SinkRunner-PollingRunner-DefaultSinkProcessor) [INFO - org.apache.flume.sink.LoggerSink.process(LoggerSink.java:95)] Event: { headers:{id=c9a43418-edb7-4a01-9a5f-ffd6415fac3c} body: 3A 3A 31 20 2D 20 2D 20 5B 30 32 2F 4D 61 72 2F ::1 - - [02/Mar/ }
+2018-03-02 15:16:09,906 (SinkRunner-PollingRunner-DefaultSinkProcessor) [INFO - org.apache.flume.sink.LoggerSink.process(LoggerSink.java:95)] Event: { headers:{id=3911f1f6-ee1b-4ef4-8cee-7b2ad07de108} body: 3A 3A 31 20 2D 20 2D 20 5B 30 32 2F 4D 61 72 2F ::1 - - [02/Mar/ }
+2018-03-02 15:16:09,907 (SinkRunner-PollingRunner-DefaultSinkProcessor) [INFO - org.apache.flume.sink.LoggerSink.process(LoggerSink.java:95)] Event: { headers:{id=47788849-26a5-41f9-8cf8-c374d3fd377f} body: 3A 3A 31 20 2D 20 2D 20 5B 30 32 2F 4D 61 72 2F ::1 - - [02/Mar/ }
+2018-03-02 15:16:09,908 (SinkRunner-PollingRunner-DefaultSinkProcessor) [INFO - org.apache.flume.sink.LoggerSink.process(LoggerSink.java:95)] Event: { headers:{id=e4e5ce8c-9298-4bfb-b1a4-51d492b9bdf8} body: 3A 3A 31 20 2D 20 2D 20 5B 30 32 2F 4D 61 72 2F ::1 - - [02/Mar/ }
+2018-03-02 15:16:09,909 (SinkRunner-PollingRunner-DefaultSinkProcessor) [INFO - org.apache.flume.sink.LoggerSink.process(LoggerSink.java:95)] Event: { headers:{id=bc784409-6ccb-4d6b-a2fd-91d6d1b3066f} body: 3A 3A 31 20 2D 20 2D 20 5B 30 32 2F 4D 61 72 2F ::1 - - [02/Mar/ }
+2018-03-02 15:16:09,909 (SinkRunner-PollingRunner-DefaultSinkProcessor) [INFO - org.apache.flume.sink.LoggerSink.process(LoggerSink.java:95)] Event: { headers:{id=9c491e51-b2bb-4145-b374-84e2cb3c6120} body: 3A 3A 31 20 2D 20 2D 20 5B 30 32 2F 4D 61 72 2F ::1 - - [02/Mar/ }
+2018-03-02 15:16:09,910 (SinkRunner-PollingRunner-DefaultSinkProcessor) [INFO - org.apache.flume.sink.LoggerSink.process(LoggerSink.java:95)] Event: { headers:{id=47b298cb-e044-4271-b0f9-5e1f84b782b1} body: 3A 3A 31 20 2D 20 2D 20 5B 30 32 2F 4D 61 72 2F ::1 - - [02/Mar/ }
+```
+
+Furthermore, we notice that the UUIDs are generating collisions (since we have many identitical log entries since the Apache log only specifies a timestamp to the second). Although our logger sink is generating the UUIDs to the console, our file sink remains the same as before.
+
+```
+$ cat hw5_p4_sink/* | tail
+::1 - - [02/Mar/2018:15:15:59 +0000] "GET / HTTP/1.1" 200 85 "-" "curl/7.29.0"
+::1 - - [02/Mar/2018:15:16:00 +0000] "GET / HTTP/1.1" 200 85 "-" "curl/7.29.0"
+::1 - - [02/Mar/2018:15:16:00 +0000] "GET / HTTP/1.1" 200 85 "-" "curl/7.29.0"
+::1 - - [02/Mar/2018:15:16:00 +0000] "GET / HTTP/1.1" 200 85 "-" "curl/7.29.0"
+::1 - - [02/Mar/2018:15:16:00 +0000] "GET / HTTP/1.1" 200 85 "-" "curl/7.29.0"
+::1 - - [02/Mar/2018:15:16:00 +0000] "GET / HTTP/1.1" 200 85 "-" "curl/7.29.0"
+::1 - - [02/Mar/2018:15:16:00 +0000] "GET / HTTP/1.1" 200 85 "-" "curl/7.29.0"
+::1 - - [02/Mar/2018:15:16:00 +0000] "GET / HTTP/1.1" 200 85 "-" "curl/7.29.0"
+::1 - - [02/Mar/2018:15:16:00 +0000] "GET / HTTP/1.1" 200 85 "-" "curl/7.29.0"
+::1 - - [02/Mar/2018:15:16:00 +0000] "GET / HTTP/1.1" 200 85 "-" "curl/7.29.0"
+```
+
 ## Problem 5
 
 We install Apache from the repos and download Flume to our home directory:
