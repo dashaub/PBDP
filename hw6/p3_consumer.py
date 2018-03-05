@@ -25,6 +25,6 @@ for msg in consumer:
     print(msg)
     count += 1
     partitions.append(msg.partition)
-    # Print a distribution of the partitions every 100 events
-    if not count % 100:
+    # Print a distribution of the partitions every 1000 events
+    if not count % 1000:
         print_distribution(partitions)

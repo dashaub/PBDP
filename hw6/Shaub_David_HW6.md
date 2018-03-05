@@ -436,6 +436,51 @@ TODO: verify UUID appear in record headers
 
 ## Problem 3
 
+To produce messages, we will run `p3_producer.py`:
+```
+"""
+A Kafka producer that generates events at a specified rate with a timestamp, user, and URL.
+"""
+import argparse
+import datetime
+import hashlib
+import random
+import time
+
+from kafka import KafkaProducer
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--rate', type=float, default=1,
+                    help='Number of events per second to generate')
+parser.add_argument('--seed', type=int, default=12345,
+                    help='See to use for reproducibility')
+args = parser.parse_args()
+sleep_time = 1 / args.rate
+seed = args.seed
+
+users = ['foo', 'bar', 'baz']
+urls = ['https://en.wikipedia.org/wiki/Apache_Flume',
+        'https://en.wikipedia.org/wiki/Main_Page',
+        'https://en.wikipedia.org/wiki/Apache_Kafka']
+
+producer = KafkaProducer(bootstrap_servers='localhost:9092')
+random.seed(seed)
+while True:
+    # Select a random user and URL
+    user = random.choice(users)
+    url = random.choice(urls)
+    # Get the current time in UTC
+    current_time = str(datetime.datetime.utcnow())
+    # Generate a UUID for the event
+    identifier = str([current_time, url, user]).encode('utf-8')
+    uuid = hashlib.md5(identifier).hexdigest()
+    # Build final message and send to the Kafka cluster
+    message = '{}\t{}\t{}\t{}'.format(uuid, current_time, url, user)
+    producer.send('problem3', message)
+    time.sleep(sleep_time)
+
+```
+
 Create out topic with 3 partitions and launch our Python producer:
 ```
 $ ~/kafka_2.12-1.0.0/bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 3 --topic problem3
@@ -464,10 +509,62 @@ bc12afae1a425def3f83904a1f84e5e7	2018-03-03 19:11:27.885213	https://en.wikipedia
 21af41fd5e08d3d8b19288f4e5ded1a8	2018-03-03 19:11:28.886150	https://en.wikipedia.org/wiki/Apache_Kafka	foo
 ```
 
-Now we hook up a Python consumer to read the data. To demonstrate that the load distribution is split evenly across the partitions, after 1000 messages it will also print out a summary of the load across the partitions. The last few events before the partition statistics are included below:
+Now we hook up a Python consumer `p3_consumer.py` to read the data:
+```
+"""
+A Kafka consumer that consumes from the problem3 topic.
+"""
+
+from kafka import KafkaConsumer
+
+def print_distribution(data):
+    """
+    Print a summary of the frequency of each partition encounter. This will show the balance of
+    load across the partitions
+    :param data: A list containing the partition numbers
+    """
+    unique_partitions = list(set(data))
+    num_elements = len(data)
+    for partition in unique_partitions:
+        partition_count = data.count(partition)
+        print('Partition {}: {}'.format(partition, partition_count))
+
+
+consumer = KafkaConsumer('problem3')
+count = 0
+# Keep track of which partitions 
+partitions = []
+for msg in consumer:
+    print(msg)
+    count += 1
+    partitions.append(msg.partition)
+    # Print a distribution of the partitions every 1000 events
+    if not count % 1000:
+        print_distribution(partitions)
 ```
 
+
+To demonstrate that the load distribution is split evenly across the partitions, after 1000 messages it will also print out a summary of the load across the partitions. So that we do not need to wait very long to reach 1000 messages, our producer was launcher with a faster `--rate 50` argument. The last few events before the partition statistics are included below:
 ```
+$ python p3_consumer.py 
+ConsumerRecord(topic=u'problem3', partition=1, offset=745, timestamp=1520114161551, timestamp_type=0, key=None, value='e4e0650557a9060e98a39525637b0733\t2018-03-03 21:56:01.550845\thttps://en.wikipedia.org/wiki/Main_Page\tbar', checksum=None, serialized_key_size=-1, serialized_value_size=103)
+ConsumerRecord(topic=u'problem3', partition=0, offset=899, timestamp=1520114161756, timestamp_type=0, key=None, value='005057a2e5354080c860d4ccb9928a6a\t2018-03-03 21:56:01.755995\thttps://en.wikipedia.org/wiki/Apache_Flume\tfoo', checksum=None, serialized_key_size=-1, serialized_value_size=106)
+ConsumerRecord(topic=u'problem3', partition=1, offset=746, timestamp=1520114161573, timestamp_type=0, key=None, value='b42ce2e616ca368d762429caa8312e6c\t2018-03-03 21:56:01.572880\thttps://en.wikipedia.org/wiki/Main_Page\tfoo', checksum=None, serialized_key_size=-1, serialized_value_size=103)
+ConsumerRecord(topic=u'problem3', partition=1, offset=747, timestamp=1520114161602, timestamp_type=0, key=None, value='852adc4d33d5b51ecc2375979e8ce0a5\t2018-03-03 21:56:01.602628\thttps://en.wikipedia.org/wiki/Apache_Kafka\tfoo', checksum=None, serialized_key_size=-1, serialized_value_size=106)
+ConsumerRecord(topic=u'problem3', partition=1, offset=748, timestamp=1520114161677, timestamp_type=0, key=None, value='a2dbf13ffc20f8d434696956a231d885\t2018-03-03 21:56:01.677720\thttps://en.wikipedia.org/wiki/Apache_Flume\tfoo', checksum=None, serialized_key_size=-1, serialized_value_size=106)
+ConsumerRecord(topic=u'problem3', partition=1, offset=749, timestamp=1520114161700, timestamp_type=0, key=None, value='55e35718f75671f8c65ab8db65293269\t2018-03-03 21:56:01.699985\thttps://en.wikipedia.org/wiki/Apache_Kafka\tbar', checksum=None, serialized_key_size=-1, serialized_value_size=106)
+ConsumerRecord(topic=u'problem3', partition=2, offset=757, timestamp=1520114161631, timestamp_type=0, key=None, value='9e19b07d922efa44ab7084eeb36181b7\t2018-03-03 21:56:01.630908\thttps://en.wikipedia.org/wiki/Main_Page\tbaz', checksum=None, serialized_key_size=-1, serialized_value_size=103)
+ConsumerRecord(topic=u'problem3', partition=2, offset=758, timestamp=1520114161654, timestamp_type=0, key=None, value='0f5d95cddf150fe213d5f0c705896718\t2018-03-03 21:56:01.654250\thttps://en.wikipedia.org/wiki/Main_Page\tfoo', checksum=None, serialized_key_size=-1, serialized_value_size=103)
+ConsumerRecord(topic=u'problem3', partition=2, offset=759, timestamp=1520114161729, timestamp_type=0, key=None, value='eb9b2497d7e2bcc2c3ffecbd2c747221\t2018-03-03 21:56:01.728838\thttps://en.wikipedia.org/wiki/Apache_Flume\tfoo', checksum=None, serialized_key_size=-1, serialized_value_size=106)
+ConsumerRecord(topic=u'problem3', partition=0, offset=900, timestamp=1520114161786, timestamp_type=0, key=None, value='06879b5ddda9cee3a35105968b758f61\t2018-03-03 21:56:01.786486\thttps://en.wikipedia.org/wiki/Apache_Kafka\tbar', checksum=None, serialized_key_size=-1, serialized_value_size=106)
+ConsumerRecord(topic=u'problem3', partition=1, offset=750, timestamp=1520114161815, timestamp_type=0, key=None, value='fb96cf64a3d95420e6e351402adaf6d3\t2018-03-03 21:56:01.815605\thttps://en.wikipedia.org/wiki/Apache_Kafka\tbar', checksum=None, serialized_key_size=-1, serialized_value_size=106)
+ConsumerRecord(topic=u'problem3', partition=0, offset=901, timestamp=1520114161915, timestamp_type=0, key=None, value='d81bb8b120598b0f555a5fd07d922bd4\t2018-03-03 21:56:01.915159\thttps://en.wikipedia.org/wiki/Apache_Flume\tfoo', checksum=None, serialized_key_size=-1, serialized_value_size=106)
+Partition 0: 365
+Partition 1: 318
+Partition 2: 317
+```
+
+We can see the offsets, partitions, the headers, and the body of the events. The last three lines show that each partition receives approximately one third of the messages.
 
 ## Problem 4
 
