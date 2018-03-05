@@ -436,5 +436,38 @@ TODO: verify UUID appear in record headers
 
 ## Problem 3
 
+Create out topic with 3 partitions and launch our Python producer:
+```
+$ ~/kafka_2.12-1.0.0/bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 3 --topic problem3
+Created topic "problem3".
+$ python p3_producer.py 
+```
+
+And then we see the messages appear in our Kafka console consumer:
+```
+$ ~/kafka_2.12-1.0.0/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic problem3 --from-beginning
+af5c05a04b473e16ceffff0e8effc4bf	2018-03-03 19:11:13.831716	https://en.wikipedia.org/wiki/Apache_Flume	bar
+cf3ed4ec135000c7e6a986f9d6b251a0	2018-03-03 19:11:14.834083	https://en.wikipedia.org/wiki/Main_Page	foo
+82caef1d9d22a0af965d82c70d62c9d6	2018-03-03 19:11:15.834735	https://en.wikipedia.org/wiki/Apache_Flume	bar
+b196992ef248e94de3fb8ff3af0bef3e	2018-03-03 19:11:16.837919	https://en.wikipedia.org/wiki/Main_Page	bar
+8cf5636b706a85246febc367d5c667b6	2018-03-03 19:11:17.850812	https://en.wikipedia.org/wiki/Main_Page	bar
+b500b7fea3f52a5b894bda13ed426466	2018-03-03 19:11:18.851872	https://en.wikipedia.org/wiki/Apache_Kafka	foo
+823a0957e63b47a007f5793570219dce	2018-03-03 19:11:19.859302	https://en.wikipedia.org/wiki/Apache_Flume	bar
+9405349f3b06faa9761d118cba1e533a	2018-03-03 19:11:20.864085	https://en.wikipedia.org/wiki/Main_Page	foo
+3c3b647bac90ff5c39d4a1879f670d05	2018-03-03 19:11:21.869171	https://en.wikipedia.org/wiki/Apache_Kafka	bar
+268a419180c043ad4f840789932fa4e1	2018-03-03 19:11:22.871213	https://en.wikipedia.org/wiki/Apache_Flume	baz
+31ecde0365edc556ea7c3ff5403d3e76	2018-03-03 19:11:23.874269	https://en.wikipedia.org/wiki/Apache_Kafka	baz
+c82c35a9471ecf07b9907d20fb7f7691	2018-03-03 19:11:24.879059	https://en.wikipedia.org/wiki/Main_Page	foo
+b4022af71efbe643cf7fb494d9b16ec4	2018-03-03 19:11:25.880389	https://en.wikipedia.org/wiki/Apache_Kafka	bar
+6cd9df7d0ebb504a244c828cb00353b8	2018-03-03 19:11:26.884465	https://en.wikipedia.org/wiki/Apache_Kafka	bar
+bc12afae1a425def3f83904a1f84e5e7	2018-03-03 19:11:27.885213	https://en.wikipedia.org/wiki/Apache_Flume	baz
+21af41fd5e08d3d8b19288f4e5ded1a8	2018-03-03 19:11:28.886150	https://en.wikipedia.org/wiki/Apache_Kafka	foo
+```
+
+Now we hook up a Python consumer to read the data. To demonstrate that the load distribution is split evenly across the partitions, after 1000 messages it will also print out a summary of the load across the partitions. The last few events before the partition statistics are included below:
+```
+
+```
+
 ## Problem 4
 

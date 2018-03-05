@@ -1,5 +1,5 @@
 """
-A Kafka producer that generates events at a specified rate with a timestamp, user, and URL
+A Kafka producer that generates events at a specified rate with a timestamp, user, and URL.
 """
 import argparse
 import datetime
@@ -36,5 +36,5 @@ while True:
     uuid = hashlib.md5(identifier).hexdigest()
     # Build final message and send to the Kafka cluster
     message = '{}\t{}\t{}\t{}'.format(uuid, current_time, url, user)
-    producer.add(message)
+    producer.send('problem3', message)
     time.sleep(sleep_time)
