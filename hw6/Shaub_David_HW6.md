@@ -5,7 +5,7 @@ geometry: margin=2cm
 date: 2018-03-03
 ---
 
-All problems were completed, including problem 5.
+All problems were completed, including problems A and B.
 
 ## Problem 1
 
@@ -424,6 +424,7 @@ a1.sources.src-1.channels = ch-1
 a1.sources.src-1.command = sudo tail -F /var/log/httpd/access_log
 a1.sources.src-1.interceptors = i1
 a1.sources.src-1.interceptors.i1.type = org.apache.flume.sink.solr.morphline.UUIDInterceptor$Builder
+a1.sources.src-1.interceptors.i1.headerName = key
 
 a1.sinks = k1
 a1.sinks.k1.type = org.apache.flume.sink.kafka.KafkaSink
@@ -432,7 +433,40 @@ a1.sinks.k1.kafka.topic = problem2
 a1.sinks.k1.kafka.bootstrap.servers = localhost:9092
 ```
 
-TODO: verify UUID appear in record headers
+Launch the Flume agent using this configuration:
+```
+$ ~/apache-flume-1.8.0-bin/bin/flume-ng agent --conf ~/apache-flume-1.8.0-bin/conf --conf-file p2_interceptor.conf --name a1 -Dflume.root.logger=INFO,console
+```
+
+To view the messages and ensure the UUID is being passed, we'll create a simple consumer `p2_consumer.py`:
+```
+"""
+A Kafka consumer that consumes from the problem2 topic.
+"""
+
+from kafka import KafkaConsumer
+
+
+consumer = KafkaConsumer('problem2')
+
+for msg in consumer:
+    print(msg)
+```
+
+Launch the consumer and view the messages appearing:
+```
+$ python p2_consumer.py
+ConsumerRecord(topic=u'problem2', partition=0, offset=927, timestamp=-1, timestamp_type=0, key='738d8202-dd5f-4d98-b54c-14741bd657dc', value='::1 - - [04/Mar/2018:21:11:07 +0000] "GET / HTTP/1.1" 200 85 "-" "curl/7.29.0"', checksum=None, serialized_key_size=36, serialized_value_size=78)
+ConsumerRecord(topic=u'problem2', partition=0, offset=928, timestamp=-1, timestamp_type=0, key='dc04efe0-dcd7-4e24-afda-5a73679ed7e5', value='::1 - - [04/Mar/2018:21:11:07 +0000] "GET / HTTP/1.1" 200 85 "-" "curl/7.29.0"', checksum=None, serialized_key_size=36, serialized_value_size=78)
+ConsumerRecord(topic=u'problem2', partition=0, offset=929, timestamp=-1, timestamp_type=0, key='63d23367-ee24-4de1-b279-9df89404c4d7', value='::1 - - [04/Mar/2018:21:11:07 +0000] "GET / HTTP/1.1" 200 85 "-" "curl/7.29.0"', checksum=None, serialized_key_size=36, serialized_value_size=78)
+ConsumerRecord(topic=u'problem2', partition=0, offset=930, timestamp=-1, timestamp_type=0, key='c8c8a988-22d3-4bc6-8c51-027cf3606ddb', value='::1 - - [04/Mar/2018:21:11:07 +0000] "GET / HTTP/1.1" 200 85 "-" "curl/7.29.0"', checksum=None, serialized_key_size=36, serialized_value_size=78)
+ConsumerRecord(topic=u'problem2', partition=0, offset=931, timestamp=-1, timestamp_type=0, key='1179b902-0f58-430f-95b9-b87e39591d2f', value='::1 - - [04/Mar/2018:21:11:07 +0000] "GET / HTTP/1.1" 200 85 "-" "curl/7.29.0"', checksum=None, serialized_key_size=36, serialized_value_size=78)
+ConsumerRecord(topic=u'problem2', partition=0, offset=932, timestamp=-1, timestamp_type=0, key='935a838a-f6a3-4bf8-82e1-fbb1336acde0', value='::1 - - [04/Mar/2018:21:11:07 +0000] "GET / HTTP/1.1" 200 85 "-" "curl/7.29.0"', checksum=None, serialized_key_size=36, serialized_value_size=78)
+ConsumerRecord(topic=u'problem2', partition=0, offset=933, timestamp=-1, timestamp_type=0, key='7d8aaeb6-ee15-460d-9b66-2b1fddca818d', value='::1 - - [04/Mar/2018:21:11:07 +0000] "GET / HTTP/1.1" 200 85 "-" "curl/7.29.0"', checksum=None, serialized_key_size=36, serialized_value_size=78)
+ConsumerRecord(topic=u'problem2', partition=0, offset=934, timestamp=-1, timestamp_type=0, key='0b00271c-ea88-472c-bb14-60ff888301ad', value='::1 - - [04/Mar/2018:21:11:08 +0000] "GET / HTTP/1.1" 200 85 "-" "curl/7.29.0"', checksum=None, serialized_key_size=36, serialized_value_size=78)
+```
+We see the UUID appearing in the `key` field.
+
 
 ## Problem 3
 
@@ -568,3 +602,36 @@ We can see the offsets, partitions, the headers, and the body of the events. The
 
 ## Problem 4
 
+To place the consumers into a consumer group, we use a very slightly modified consumer from Problem 3 called `p4_consumer.py`:
+```
+"""
+A Kafka consumer that consumes from the problem3 topic.
+"""
+
+from kafka import KafkaConsumer
+
+def print_distribution(data):
+    """
+    Print a summary of the frequency of each partition encounter. This will show the balance of
+    load across the partitions
+    :param data: A list containing the partition numbers
+    """
+    unique_partitions = list(set(data))
+    num_elements = len(data)
+    for partition in unique_partitions:
+        partition_count = data.count(partition)
+        print('Partition {}: {}'.format(partition, partition_count))
+
+
+consumer = KafkaConsumer(topics='problem3', group_id='test_consumer_group')
+count = 0
+# Keep track of which partitions 
+partitions = []
+for msg in consumer:
+    print(msg)
+    count += 1
+    partitions.append(msg.partition)
+    # Print a distribution of the partitions every 30 events
+    if not count % 30:
+        print_distribution(partitions)
+```
