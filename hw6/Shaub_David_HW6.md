@@ -797,3 +797,293 @@ ConsumerRecord(topic=u'problem3', partition=0, offset=2596, timestamp=1520390857
 ```
 
 We see that `bar` always appears in partition 0, `foo` in partition 2, `foobar` in partition 0, and and `baz` in partition 0. If we were to have a large number of users, we'd expect the users to be fairly balanced between the three partitions.
+
+
+## Problem B
+
+We'll use Docker--and the excellent documentation and dockerfiles supplied by [Confluent](https://docs.confluent.io/current/installation/docker/docs/tutorials/clustered-deployment.html)--to setup our Kafka cluster. We clone the repo and launch the containers:
+```
+$ git clone https://docs.confluent.io/current/installation/docker/docs/tutorials/clustered-deployment.html
+$ cd cp-docker-images/examples/kafka-cluster
+$ docker-compose ps
+           Name                       Command            State   Ports
+----------------------------------------------------------------------
+kafkacluster_kafka-1_1       /etc/confluent/docker/run   Up           
+kafkacluster_kafka-2_1       /etc/confluent/docker/run   Up           
+kafkacluster_kafka-3_1       /etc/confluent/docker/run   Up           
+kafkacluster_zookeeper-1_1   /etc/confluent/docker/run   Up           
+kafkacluster_zookeeper-2_1   /etc/confluent/docker/run   Up           
+kafkacluster_zookeeper-3_1   /etc/confluent/docker/run   Up  
+```
+
+Our cluster is up and running, and we see that our three-node cluster has one leader and two followers:
+```
+$ for i in 22181 32181 42181; do
+>    docker run --net=host --rm confluentinc/cp-zookeeper:4.0.0 bash -c "echo stat | nc localhost $i | grep Mode"
+> done
+Mode: follower
+Mode: follower
+Mode: leader
+```
+
+The logs from each of the containers is multiplexed together into one terminal:
+```
+kafka-2_1      | [2018-03-07 21:55:15,515] INFO Kafka version : 1.0.0-cp1 (org.apache.kafka.common.utils.AppInfoParser)
+kafka-2_1      | [2018-03-07 21:55:15,515] INFO Kafka commitId : ec61c5e93da662df (org.apache.kafka.common.utils.AppInfoParser)
+kafka-2_1      | [2018-03-07 21:55:15,517] INFO [KafkaServer id=2] started (kafka.server.KafkaServer)
+kafka-1_1      | [2018-03-07 21:55:15,521] INFO [Controller-1-to-broker-2-send-thread]: Starting (kafka.controller.RequestSendThread)
+kafka-1_1      | [2018-03-07 21:55:15,529] INFO [Controller id=1] New broker startup callback for 2,3 (kafka.controller.KafkaController)
+kafka-1_1      | [2018-03-07 21:55:15,533] INFO [Controller-1-to-broker-2-send-thread]: Controller 1 connected to localhost:29092 (id: 2 rack: null) for sending state change requests (kafka.controller.RequestSendThread)
+kafka-1_1      | [2018-03-07 21:55:15,530] INFO [Controller-1-to-broker-3-send-thread]: Starting (kafka.controller.RequestSendThread)
+kafka-1_1      | [2018-03-07 21:55:15,535] INFO [Controller-1-to-broker-3-send-thread]: Controller 1 connected to localhost:39092 (id: 3 rack: null) for sending state change requests (kafka.controller.RequestSendThread)
+kafka-1_1      | [2018-03-07 21:55:15,552] INFO [Controller id=1] Newly added brokers: , deleted brokers: , all live brokers: 1,2,3 (kafka.controller.KafkaController)
+kafka-1_1      | [2018-03-07 21:55:15,558] TRACE [Controller id=1 epoch=1] Received response {error_code=0} for a request sent to broker localhost:19092 (id: 1 rack: null) (state.change.logger)
+kafka-1_1      | [2018-03-07 21:55:15,573] TRACE [Controller id=1 epoch=1] Received response {error_code=0} for a request sent to broker localhost:19092 (id: 1 rack: null) (state.change.logger)
+kafka-1_1      | [2018-03-07 21:55:15,580] TRACE [Controller id=1 epoch=1] Received response {error_code=0} for a request sent to broker localhost:29092 (id: 2 rack: null) (state.change.logger)
+kafka-1_1      | [2018-03-07 21:55:15,582] TRACE [Controller id=1 epoch=1] Received response {error_code=0} for a request sent to broker localhost:39092 (id: 3 rack: null) (state.change.logger)
+kafka-1_1      | [2018-03-07 21:55:20,341] TRACE [Controller id=1] Checking need to trigger auto leader balancing (kafka.controller.KafkaController)
+kafka-1_1      | [2018-03-07 21:55:20,344] DEBUG [Controller id=1] Preferred replicas by broker Map() (kafka.controller.KafkaController)
+zookeeper-1_1  | [2018-03-07 21:57:25,578] INFO Accepted socket connection from /127.0.0.1:34156 (org.apache.zookeeper.server.NIOServerCnxnFactory)
+zookeeper-1_1  | [2018-03-07 21:57:25,579] INFO The list of known four letter word commands is : [{1936881266=srvr, 1937006964=stat, 2003003491=wchc, 1685417328=dump, 1668445044=crst, 1936880500=srst, 1701738089=envi, 1668247142=conf, 2003003507=wchs, 2003003504=wchp, 1668247155=cons, 1835955314=mntr, 1769173615=isro, 1920298859=ruok, 1735683435=gtmk, 1937010027=stmk}] (org.apache.zookeeper.server.ServerCnxn)
+zookeeper-1_1  | [2018-03-07 21:57:25,579] INFO The list of enabled four letter word commands is : [[wchs, stat, stmk, conf, ruok, mntr, srvr, envi, srst, isro, dump, gtmk, crst, cons]] (org.apache.zookeeper.server.ServerCnxn)
+zookeeper-1_1  | [2018-03-07 21:57:25,579] INFO Processing stat command from /127.0.0.1:34156 (org.apache.zookeeper.server.NIOServerCnxn)
+zookeeper-1_1  | [2018-03-07 21:57:25,581] INFO Stat command output (org.apache.zookeeper.server.NIOServerCnxn)
+zookeeper-1_1  | [2018-03-07 21:57:25,582] INFO Closed socket connection for client /127.0.0.1:34156 (no session established for client) (org.apache.zookeeper.server.NIOServerCnxn)
+zookeeper-2_1  | [2018-03-07 21:57:26,270] INFO Accepted socket connection from /127.0.0.1:40894 (org.apache.zookeeper.server.NIOServerCnxnFactory)
+zookeeper-2_1  | [2018-03-07 21:57:26,270] INFO The list of known four letter word commands is : [{1936881266=srvr, 1937006964=stat, 2003003491=wchc, 1685417328=dump, 1668445044=crst, 1936880500=srst, 1701738089=envi, 1668247142=conf, 2003003507=wchs, 2003003504=wchp, 1668247155=cons, 1835955314=mntr, 1769173615=isro, 1920298859=ruok, 1735683435=gtmk, 1937010027=stmk}] (org.apache.zookeeper.server.ServerCnxn)
+zookeeper-2_1  | [2018-03-07 21:57:26,270] INFO The list of enabled four letter word commands is : [[wchs, stat, stmk, conf, ruok, mntr, srvr, envi, srst, isro, dump, gtmk, crst, cons]] (org.apache.zookeeper.server.ServerCnxn)
+zookeeper-2_1  | [2018-03-07 21:57:26,270] INFO Processing stat command from /127.0.0.1:40894 (org.apache.zookeeper.server.NIOServerCnxn)
+zookeeper-2_1  | [2018-03-07 21:57:26,275] INFO Stat command output (org.apache.zookeeper.server.NIOServerCnxn)
+zookeeper-2_1  | [2018-03-07 21:57:26,277] INFO Closed socket connection for client /127.0.0.1:40894 (no session established for client) (org.apache.zookeeper.server.NIOServerCnxn)
+zookeeper-3_1  | [2018-03-07 21:57:26,915] INFO Accepted socket connection from /127.0.0.1:56398 (org.apache.zookeeper.server.NIOServerCnxnFactory)
+zookeeper-3_1  | [2018-03-07 21:57:26,928] INFO The list of known four letter word commands is : [{1936881266=srvr, 1937006964=stat, 2003003491=wchc, 1685417328=dump, 1668445044=crst, 1936880500=srst, 1701738089=envi, 1668247142=conf, 2003003507=wchs, 2003003504=wchp, 1668247155=cons, 1835955314=mntr, 1769173615=isro, 1920298859=ruok, 1735683435=gtmk, 1937010027=stmk}] (org.apache.zookeeper.server.ServerCnxn)
+zookeeper-3_1  | [2018-03-07 21:57:26,928] INFO The list of enabled four letter word commands is : [[wchs, stat, stmk, conf, ruok, mntr, srvr, envi, srst, isro, dump, gtmk, crst, cons]] (org.apache.zookeeper.server.ServerCnxn)
+zookeeper-3_1  | [2018-03-07 21:57:26,928] INFO Processing stat command from /127.0.0.1:56398 (org.apache.zookeeper.server.NIOServerCnxn)
+zookeeper-3_1  | [2018-03-07 21:57:26,930] INFO Stat command output (org.apache.zookeeper.server.NIOServerCnxn)
+zookeeper-3_1  | [2018-03-07 21:57:26,931] INFO Closed socket connection for client /127.0.0.1:56398 (no session established for client) (org.apache.zookeeper.server.NIOServerCnxn)
+zookeeper-1_1  | [2018-03-07 21:58:11,238] INFO Accepted socket connection from /127.0.0.1:34162 (org.apache.zookeeper.server.NIOServerCnxnFactory)
+zookeeper-1_1  | [2018-03-07 21:58:11,239] INFO Processing stat command from /127.0.0.1:34162 (org.apache.zookeeper.server.NIOServerCnxn)
+zookeeper-1_1  | [2018-03-07 21:58:11,239] INFO Stat command output (org.apache.zookeeper.server.NIOServerCnxn)
+zookeeper-1_1  | [2018-03-07 21:58:11,241] INFO Closed socket connection for client /127.0.0.1:34162 (no session established for client) (org.apache.zookeeper.server.NIOServerCnxn)
+zookeeper-2_1  | [2018-03-07 21:58:11,830] INFO Accepted socket connection from /127.0.0.1:40900 (org.apache.zookeeper.server.NIOServerCnxnFactory)
+zookeeper-2_1  | [2018-03-07 21:58:11,830] INFO Processing stat command from /127.0.0.1:40900 (org.apache.zookeeper.server.NIOServerCnxn)
+zookeeper-2_1  | [2018-03-07 21:58:11,831] INFO Stat command output (org.apache.zookeeper.server.NIOServerCnxn)
+zookeeper-2_1  | [2018-03-07 21:58:11,832] INFO Closed socket connection for client /127.0.0.1:40900 (no session established for client) (org.apache.zookeeper.server.NIOServerCnxn)
+zookeeper-3_1  | [2018-03-07 21:58:12,434] INFO Accepted socket connection from /127.0.0.1:56404 (org.apache.zookeeper.server.NIOServerCnxnFactory)
+zookeeper-3_1  | [2018-03-07 21:58:12,434] INFO Processing stat command from /127.0.0.1:56404 (org.apache.zookeeper.server.NIOServerCnxn)
+zookeeper-3_1  | [2018-03-07 21:58:12,434] INFO Stat command output (org.apache.zookeeper.server.NIOServerCnxn)
+zookeeper-3_1  | [2018-03-07 21:58:12,435] INFO Closed socket connection for client /127.0.0.1:56404 (no session established for client) (org.apache.zookeeper.server.NIOServerCnxn)
+kafka-1_1      | [2018-03-07 22:00:20,345] TRACE [Controller id=1] Checking need to trigger auto leader balancing (kafka.controller.KafkaController)
+kafka-1_1      | [2018-03-07 22:00:20,346] DEBUG [Controller id=1] Preferred replicas by broker Map() (kafka.controller.KafkaController)
+```
+
+Another view of the cluster:
+```
+$ docker ps
+CONTAINER ID        IMAGE                              COMMAND                  CREATED             STATUS              PORTS               NAMES
+4bf4b37a88d9        confluentinc/cp-kafka:latest       "/etc/confluent/dock…"   9 minutes ago       Up 9 minutes                            kafkacluster_kafka-3_1
+fb13753e9623        confluentinc/cp-kafka:latest       "/etc/confluent/dock…"   9 minutes ago       Up 9 minutes                            kafkacluster_kafka-2_1
+1502c3ed8350        confluentinc/cp-kafka:latest       "/etc/confluent/dock…"   9 minutes ago       Up 9 minutes                            kafkacluster_kafka-1_1
+cb52fcacb19b        confluentinc/cp-zookeeper:latest   "/etc/confluent/dock…"   9 minutes ago       Up 9 minutes                            kafkacluster_zookeeper-2_1
+d9e9bd6118d5        confluentinc/cp-zookeeper:latest   "/etc/confluent/dock…"   9 minutes ago       Up 9 minutes                            kafkacluster_zookeeper-3_1
+bccff0d5885a        confluentinc/cp-zookeeper:latest   "/etc/confluent/dock…"   9 minutes ago       Up 9 minutes                            kafkacluster_zookeeper-1_1
+```
+
+We'll create out topic:
+```
+$ docker run \
+  --net=host \
+  --rm \
+  confluentinc/cp-kafka:4.0.0 \
+  kafka-topics --create --topic problemb --partitions 4 --replication-factor 2 --if-not-exists --zookeeper localhost:32181
+Created topic "problemb".
+```
+
+We describe the topic and see which node is the leader of each partition:
+```
+$ docker run \
+    --net=host \
+    --rm \
+    confluentinc/cp-kafka:4.0.0 \
+    kafka-topics --describe --topic problemb --zookeeper localhost:32181
+Topic:problemb	PartitionCount:4	ReplicationFactor:2	Configs:
+	Topic: problemb	Partition: 0	Leader: 3	Replicas: 3,1	Isr: 3,1
+	Topic: problemb	Partition: 1	Leader: 1	Replicas: 1,2	Isr: 1,2
+	Topic: problemb	Partition: 2	Leader: 2	Replicas: 2,3	Isr: 2,3
+	Topic: problemb	Partition: 3	Leader: 3	Replicas: 3,2	Isr: 3,2
+```
+
+Now we'll send some messages with a console producer:
+```
+$ docker run \
+  --net=host \
+  --rm confluentinc/cp-kafka:4.0.0 \
+  bash -c "seq 42 | kafka-console-producer --broker-list localhost:29092 --topic problemb && echo 'Produced 42 messages.'"
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>Produced 42 messages.
+```
+
+We see these appear in our consumer:
+```
+$ docker run \
+ --net=host \
+ --rm \
+ confluentinc/cp-kafka:4.0.0 \
+ kafka-console-consumer --bootstrap-server localhost:29092 --topic problemb --new-consumer --from-beginning --max-messages 42
+The --new-consumer option is deprecated and will be removed in a future major release.The new consumer is used by default if the --bootstrap-server option is provided.
+3
+7
+11
+15
+19
+23
+27
+31
+35
+39
+2
+6
+10
+14
+18
+22
+26
+30
+34
+38
+42
+1
+5
+9
+13
+17
+21
+25
+29
+33
+37
+41
+4
+8
+12
+16
+20
+24
+28
+32
+36
+40
+```
+
+Now we stop the first Kafka workers and see how the cluster reacts:
+```
+$ docker stop 1502c3ed8350
+1502c3ed8350
+```
+
+Using the `describe` command, we see that the first Kafka node is no longer the leader of any partitions, and it does not appear as an ISR. Furthermore, we notice that partitions 0 and 1 no longer have replication and would be vulnerable to the loss of an additional node:
+```
+$ docker run \
+    --net=host \
+    --rm \
+    confluentinc/cp-kafka:4.0.0 \
+    kafka-topics --describe --topic problemb --zookeeper localhost:32181
+Topic:problemb	PartitionCount:4	ReplicationFactor:2	Configs:
+	Topic: problemb	Partition: 0	Leader: 3	Replicas: 3,1	Isr: 3
+	Topic: problemb	Partition: 1	Leader: 2	Replicas: 1,2	Isr: 2
+	Topic: problemb	Partition: 2	Leader: 2	Replicas: 2,3	Isr: 2,3
+	Topic: problemb	Partition: 3	Leader: 3	Replicas: 3,2	Isr: 3,2
+```
+
+We are still able to send messages, however. We send another message from the producer:
+```
+$ docker run \
+  --net=host \
+  --rm confluentinc/cp-kafka:4.0.0 \
+  bash -c "echo 'new message' | kafka-console-producer --broker-list localhost:29092 --topic problemb"
+```
+
+This "new message" appears in the consumer:
+```
+$ docker run \
+ --net=host \
+ --rm \
+ confluentinc/cp-kafka:4.0.0 \
+ kafka-console-consumer --bootstrap-server localhost:29092 --topic problemb --new-consumer --from-beginning --max-messages 43
+The --new-consumer option is deprecated and will be removed in a future major release.The new consumer is used by default if the --bootstrap-server option is provided.
+2
+6
+10
+14
+18
+22
+26
+30
+34
+38
+42
+1
+5
+9
+13
+17
+21
+25
+29
+33
+37
+41
+3
+7
+11
+15
+19
+23
+27
+31
+35
+39
+new message
+4
+8
+12
+16
+20
+24
+28
+32
+36
+40
+```
+
+We restart the container that we stopped:
+```
+$ docker start 1502c3ed8350
+```
+
+Within 15 seconds, we now see the first node is now an ISR for the partitions that lacked a replica while it was down, but it still is not a leader for any partition:
+```
+$ docker run \
+    --net=host \
+    --rm \
+    confluentinc/cp-kafka:4.0.0 \
+    kafka-topics --describe --topic problemb --zookeeper localhost:32181
+Topic:problemb	PartitionCount:4	ReplicationFactor:2	Configs:
+	Topic: problemb	Partition: 0	Leader: 3	Replicas: 3,1	Isr: 3,1
+	Topic: problemb	Partition: 1	Leader: 2	Replicas: 1,2	Isr: 2,1
+	Topic: problemb	Partition: 2	Leader: 2	Replicas: 2,3	Isr: 2,3
+	Topic: problemb	Partition: 3	Leader: 3	Replicas: 3,2	Isr: 2,3
+```
+
+After a few minutes, we see that Kafka has fully reblanced the leaders automatically, and the node is now the leader for partition 1:
+```
+$ docker run \
+    --net=host \
+    --rm \
+    confluentinc/cp-kafka:4.0.0 \
+    kafka-topics --describe --topic problemb --zookeeper localhost:32181
+Topic:problemb	PartitionCount:4	ReplicationFactor:2	Configs:
+	Topic: problemb	Partition: 0	Leader: 3	Replicas: 3,1	Isr: 3,1
+	Topic: problemb	Partition: 1	Leader: 1	Replicas: 1,2	Isr: 2,1
+	Topic: problemb	Partition: 2	Leader: 2	Replicas: 2,3	Isr: 2,3
+	Topic: problemb	Partition: 3	Leader: 3	Replicas: 3,2	Isr: 2,3
+```
