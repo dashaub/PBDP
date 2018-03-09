@@ -2,7 +2,7 @@
 title: Homework 6
 author: David Shaub
 geometry: margin=2cm
-date: 2018-03-03
+date: 2018-03-07
 ---
 
 All problems were completed, including problems A and B.
@@ -801,10 +801,11 @@ We see that `bar` always appears in partition 0, `foo` in partition 2, `foobar` 
 
 ## Problem B
 
-We'll use Docker--and the excellent documentation and dockerfiles supplied by [Confluent](https://docs.confluent.io/current/installation/docker/docs/tutorials/clustered-deployment.html)--to setup our Kafka cluster. We clone the repo and launch the containers:
+We'll use Docker--and the excellent documentation and dockerfiles supplied by **[Confluent](https://docs.confluent.io/current/installation/docker/docs/tutorials/clustered-deployment.html)**--to setup our Kafka cluster. We clone the repo and launch the containers:
 ```
 $ git clone https://docs.confluent.io/current/installation/docker/docs/tutorials/clustered-deployment.html
 $ cd cp-docker-images/examples/kafka-cluster
+$ docker-compose up
 $ docker-compose ps
            Name                       Command            State   Ports
 ----------------------------------------------------------------------
@@ -889,7 +890,7 @@ d9e9bd6118d5        confluentinc/cp-zookeeper:latest   "/etc/confluent/dock…" 
 bccff0d5885a        confluentinc/cp-zookeeper:latest   "/etc/confluent/dock…"   9 minutes ago       Up 9 minutes                            kafkacluster_zookeeper-1_1
 ```
 
-We'll create out topic:
+We'll create out topic with 4 partitions and 2 replicas:
 ```
 $ docker run \
   --net=host \
@@ -974,7 +975,7 @@ The --new-consumer option is deprecated and will be removed in a future major re
 40
 ```
 
-Now we stop the first Kafka workers and see how the cluster reacts:
+Now we stop the first Kafka worker and see how the cluster reacts:
 ```
 $ docker stop 1502c3ed8350
 1502c3ed8350
