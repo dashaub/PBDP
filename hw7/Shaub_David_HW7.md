@@ -53,5 +53,39 @@ q3 = hour_url.countByValue()
 ```
 deduped = logs.distinct()
 hour_url = deduped.map(extract_hourpart_url)
-q1 = hour_url.distinct().map(lambda x: x.split(' ')[0]).countByValue()
+p2_q1 = hour_url.distinct().map(lambda x: x.split(' ')[0]).countByValue()
+```
+
+## Problem 3
+```
+def create_pairs(dat):
+    """
+    Create key/value pairs
+    hour, url, user = dat.split(' ')
+    results = (hour + ' ' + url, user)
+    return results
+    """
+
+# Transform into key/value pairs
+pairs = hour_url_user = logs.map(extract_hourpart_url_user).distinct()
+np = pairs.map(lambda x: (x.split(' ')[0:2], x))
+np = pairs.map(create_pairs)
+```
+
+## Problem 4
+```
+# Load the community data and create tuples
+community = sc.textFile('/Users/david.shaub/PBDP/hw7/hw7_community.txt')
+community = community.map(lambda x: tuple(x.split('\t')))
+
+# Load the log dat and create tuples
+logs = sc.textFile('/Users/david.shaub/PBDP/hw7/hw7_logs*.txt')
+user_url = logs.map(lambda x: tuple([x.split(' ')[3], x.split(' ')[2]]))
+
+# Join the datasets
+joined = community.join(user_url)
+# Discard user
+community_url = joined.map(lambda x: x[1])
+# 
+
 ```
