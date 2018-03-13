@@ -31,11 +31,7 @@ def extract_hourpart_url_user(dat):
     return '{} {} {}'.format(hourpart, url, user)
 
 
-logs = sc.textFile('/Users/david.shaub/PBDP/hw7/hw7_logs*.txt')
-# Convert full timestamp to only hour and return only needed fields
-hour_url = logs.map(extract_hourpart_url)
-# Remove duplicates, select only the hour field, and get count
-q1 = hour_url.distinct().map(lambda x: x.split(' ')[0]).countByValue()
+
 
 # Extract hour, url, and user and remove duplicates
 hour_url_user = logs.map(extract_hourpart_url_user).distinct()
@@ -86,6 +82,26 @@ user_url = logs.map(lambda x: tuple([x.split(' ')[3], x.split(' ')[2]]))
 joined = community.join(user_url)
 # Discard user
 community_url = joined.map(lambda x: x[1])
-# 
+# Combine and get count
+community_url = community_url.map(lambda x: x[0] + ' ' + x[1])
+community_url_counts = community_url.countByValue()
+```
 
+## Problem 5
+
+**Task 1**
+```
+filter_list = ['http://example.com/?url=0',
+               'http://example.com/?url=1',
+               'http://example.com/?url=2']
+
+hour_url = logs.map(extract_hourpart_url)
+# Only include selected urls
+filtered = hour_url.filter(lambda x: x.split(' ')[1] in filter_list)
+# Remove duplicates, select only the hour field, and get count
+p5_q1 = filtered.distinct().map(lambda x: x.split(' ')[0]).countByValue()
+```
+
+**Task 2**
+```
 ```
