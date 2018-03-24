@@ -6,7 +6,7 @@ from pyspark import SparkContext, SparkConf
 from datetime import datetime
 
 
-conf = SparkConf().setMaster("local[*]").setAppName("p4")
+conf = SparkConf().setAppName("p4")
 sc = SparkContext(conf = conf)
 
 def extract_hourpart_url_user(dat):
