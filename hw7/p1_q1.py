@@ -19,10 +19,9 @@ def extract_hourpart_url(dat):
     return '{} {}'.format(hourpart, url)
 
 logs = sc.textFile('/Users/david.shaub/PBDP/hw7/hw7_logs*.txt')
-# Convert full timestamp to only hour and return only needed fields
-hour_url = logs.map(extract_hourpart_url)
+# Convert full timestamp to only hour and return only needed fields and remove duplicate URLs
+hour_url = logs.map(extract_hourpart_url).distinct()
 # Form key/values, and get grouped counts
-# Note: duplicates are present here but will be allowed for this problem
 tuples = hour_url.map(lambda x: tuple([x.split(' ')[0], 1]))
 q1 = tuples.reduceByKey(lambda x, y: x + y)
 
