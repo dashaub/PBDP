@@ -24,7 +24,7 @@ filter_list = ['http://example.com/?url=0',
                'http://example.com/?url=9',
                'http://example.com/?url=3']
 
-logs = sc.textFile('/Users/david.shaub/PBDP/hw7/hw7_logs*.txt')
+logs = sc.textFile('hdfs:/hw7/hw7_logs*.txt')
 # Convert full timestamp to only hour and return only needed fields
 hour_url = logs.map(extract_hourpart_url)
 
@@ -36,4 +36,4 @@ hour_url = hour_url.filter(lambda x: any([i in x for i in filter_list]))
 tuples = hour_url.map(lambda x: tuple([x.split(' ')[0], 1]))
 q1 = tuples.reduceByKey(lambda x, y: x + y)
 
-q1.coalesce(1).saveAsTextFile("output_p5_t1/")
+q1.coalesce(1).saveAsTextFile("hdfs:/output_p5_t1/")

@@ -19,11 +19,11 @@ def extract_hourpart_url(dat):
     return '{} {}'.format(hourpart, url)
 
 # Load data and remove duplicate UUIDs
-logs = sc.textFile('/Users/david.shaub/PBDP/hw7/hw7_logs*.txt').distinct()
+logs = sc.textFile('s3://aws-logs-607380799823-us-east-2/hw7/hw7_logs*.txt').distinct()
 # Convert full timestamp to only hour and return only needed fields and remove duplicate URLs
 hour_url = logs.map(extract_hourpart_url).distinct()
 # Form key/values, and get grouped counts
 tuples = hour_url.map(lambda x: tuple([x.split(' ')[0], 1]))
 q1 = tuples.reduceByKey(lambda x, y: x + y)
 
-q1.coalesce(1).saveAsTextFile("output_p2_q1/")
+q1.coalesce(1).saveAsTextFile("hdfs:/output_p2_q1/")

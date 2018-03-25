@@ -18,6 +18,34 @@ $ hadoop fs -put hw7_logs_*.txt /hw7
 **Query 1**
 The Spark program `p1_q1.py`:
 ```
+"""
+Get count of unique URLs by hour
+"""
+
+from pyspark import SparkContext, SparkConf
+from datetime import datetime
+
+
+conf = SparkConf().setAppName("p1_q1")
+sc = SparkContext(conf = conf)
+
+def extract_hourpart_url(dat):
+    """
+    Return timestamp (up to the hour) and the URL
+    :param dat: An RDD from our log data
+    """
+    _, timestamp, url, _ = dat.split(' ')
+    hourpart = timestamp[:13]
+    return '{} {}'.format(hourpart, url)
+
+logs = sc.textFile('hdfs:/hw7/hw7_logs*.txt')
+# Convert full timestamp to only hour and return only needed fields and remove duplicate URLs
+hour_url = logs.map(extract_hourpart_url).distinct()
+# Form key/values, and get grouped counts
+tuples = hour_url.map(lambda x: tuple([x.split(' ')[0], 1]))
+q1 = tuples.reduceByKey(lambda x, y: x + y)
+
+q1.coalesce(1).saveAsTextFile("hdfs:/output_p1_q1/")
 ```
 
 We submit the job to Spark:
@@ -313,6 +341,35 @@ $ hadoop fs -cat /output_p1_q1/part* | tail
 **Query 2**
 The Spark program `p1_q2.py`:
 ```
+"""
+Get count of unique visitors by URLs by hour
+"""
+
+from pyspark import SparkContext, SparkConf
+from datetime import datetime
+
+
+conf = SparkConf().setAppName("p1_q2")
+sc = SparkContext(conf = conf)
+
+def extract_hourpart_url_user(dat):
+    """
+    Return timestamp (up to the hour), URL, and user
+    :param dat: An RDD from our log data
+    """
+    _, timestamp, url, user = dat.split(' ')
+    hourpart = timestamp[:13]
+    return '{} {} {}'.format(hourpart, url, user)
+
+logs = sc.textFile('hdfs:/hw7/hw7_logs*.txt')
+# Extract hour, url, and user and remove duplicates
+hour_url_user = logs.map(extract_hourpart_url_user).distinct()
+
+# Form key/values and get grouped counts
+tuples = hour_url_user.map(lambda x: tuple([x.split(' ')[0] + ' ' + x.split(' ')[1], 1]))
+q2 = tuples.reduceByKey(lambda x, y: x + y)
+
+q2.coalesce(1).saveAsTextFile("hdfs:/output_p1_q2/")
 ```
 
 We submit the job to Spark:
@@ -604,6 +661,35 @@ $ hadoop fs -cat /output_p1_q2/part* | tail
 **Query 3**
 The Spark program `p1_q3.py`:
 ```
+"""
+Get number of distinct clicks by URL by hour by user
+"""
+
+from pyspark import SparkContext, SparkConf
+from datetime import datetime
+
+
+conf = SparkConf().setAppName("p1_q3")
+sc = SparkContext(conf = conf)
+
+def extract_hourpart_url_user(dat):
+    """
+    Return timestamp (up to the hour), URL, and user
+    :param dat: An RDD from our log data
+    """
+    _, timestamp, url, user = dat.split(' ')
+    hourpart = timestamp[:13]
+    return '{} {} {}'.format(hourpart, url, user)
+
+logs = sc.textFile('hdfs:/hw7/hw7_logs*.txt')
+# Extract hour, url, and user and remove duplicates
+hour_url_user = logs.map(extract_hourpart_url_user).distinct()
+
+# Form key/values and get grouped counts
+tuples = hour_url_user.map(lambda x: tuple([' '.join(x.split(' ')), 1]))
+q2 = tuples.reduceByKey(lambda x, y: x + y)
+
+q2.coalesce(1).saveAsTextFile("hdfs:/output_p1_q3/")
 ```
 
 We submit the job to Spark:
@@ -858,7 +944,7 @@ $ spark-submit p1_q3.py
 
 The job completed in 25 seconds and used three stages (a distinct operation, group by operation, and file saving operation).
 
-![p1_q2 DAG](p1_q3_dag.png)
+![p1_q3 DAG](p1_q2_dag.png)
 
 Furthermore, by exmining *stage 1* in the DAG we see that the RDD had 16 partitions, and that median shuffle read and write size per task is 2.0 MB and 134.8 KB, respectively.
 
@@ -896,6 +982,35 @@ When comparing the DAGs produced from these three jobs, the high-level view of t
 ## Problem 2
 The Spark program `p2_q1.py`:
 ```
+"""
+Get count of unique URLs by hour--this time with deduplication
+"""
+
+from pyspark import SparkContext, SparkConf
+from datetime import datetime
+
+
+conf = SparkConf().setAppName("p2_q1")
+sc = SparkContext(conf = conf)
+
+def extract_hourpart_url(dat):
+    """
+    Return timestamp (up to the hour) and the URL
+    :param dat: An RDD from our log data
+    """
+    _, timestamp, url, _ = dat.split(' ')
+    hourpart = timestamp[:13]
+    return '{} {}'.format(hourpart, url)
+
+# Load data and remove duplicate UUIDs
+logs = sc.textFile('s3://aws-logs-607380799823-us-east-2/hw7/hw7_logs*.txt').distinct()
+# Convert full timestamp to only hour and return only needed fields and remove duplicate URLs
+hour_url = logs.map(extract_hourpart_url).distinct()
+# Form key/values, and get grouped counts
+tuples = hour_url.map(lambda x: tuple([x.split(' ')[0], 1]))
+q1 = tuples.reduceByKey(lambda x, y: x + y)
+
+q1.coalesce(1).saveAsTextFile("hdfs:/output_p2_q1/")
 ```
 
 We launch the Spark job:
@@ -1253,6 +1368,35 @@ This job is very similar to the job in p1_q1--the only difference being we run d
 ## Problem 3
 The Spark program `p3_groupbykey.py`:
 ```
+"""
+Get count of unique visitors by URLs by hour
+"""
+
+from pyspark import SparkContext, SparkConf
+from datetime import datetime
+
+
+conf = SparkConf().setAppName("p3_groupbykey")
+sc = SparkContext(conf = conf)
+
+def extract_hourpart_url_user(dat):
+    """
+    Return timestamp (up to the hour), URL, and user
+    :param dat: An RDD from our log data
+    """
+    _, timestamp, url, user = dat.split(' ')
+    hourpart = timestamp[:13]
+    return '{} {} {}'.format(hourpart, url, user)
+
+logs = sc.textFile('s3://aws-logs-607380799823-us-east-2/hw7/hw7_logs*.txt').repartition(200).distinct()
+# Extract hour, url, and user and remove duplicates
+hour_url_user = logs.map(extract_hourpart_url_user).distinct()
+
+# Form key/values and get grouped counts
+tuples = hour_url_user.map(lambda x: tuple([x.split(' ')[0] + ' ' + x.split(' ')[1], 1]))
+q2 = tuples.groupByKey().mapValues(sum)
+
+q2.coalesce(1).saveAsTextFile("hdfs:/output_p3_groupbykey/")
 ```
 
 We launch the Spark program:
@@ -1599,6 +1743,35 @@ $ hadoop fs -cat /output_p3_groupbykey/part* | tail
 
 The Spark program `p3_reducebykey.py`:
 ```
+"""
+Get count of unique URLs by hour--this time with deduplication
+"""
+
+from pyspark import SparkContext, SparkConf
+from datetime import datetime
+
+
+conf = SparkConf().setAppName("p2_q1")
+sc = SparkContext(conf = conf)
+
+def extract_hourpart_url(dat):
+    """
+    Return timestamp (up to the hour) and the URL
+    :param dat: An RDD from our log data
+    """
+    _, timestamp, url, _ = dat.split(' ')
+    hourpart = timestamp[:13]
+    return '{} {}'.format(hourpart, url)
+
+# Load data and remove duplicate UUIDs
+logs = sc.textFile('s3://aws-logs-607380799823-us-east-2/hw7/hw7_logs*.txt').repartition(200).distinct()
+# Convert full timestamp to only hour and return only needed fields and remove duplicate URLs
+hour_url = logs.map(extract_hourpart_url).distinct()
+# Form key/values, and get grouped counts
+tuples = hour_url.map(lambda x: tuple([x.split(' ')[0], 1]))
+q1 = tuples.reduceByKey(lambda x, y: x + y)
+
+q1.coalesce(1).saveAsTextFile("hdfs:/output_p3_reducebykey/")
 ```
 
 We launch the Spark job:
@@ -4394,6 +4567,40 @@ We add the community data to our S3 bucket with the other data:
 
 The Spark program `p4.py`:
 ```
+"""
+Join the community and logs dataset and get count of clicks per URL per communityID
+"""
+
+from pyspark import SparkContext, SparkConf
+from datetime import datetime
+
+
+conf = SparkConf().setAppName("p4")
+sc = SparkContext(conf = conf)
+
+def extract_hourpart_url_user(dat):
+    """
+    Return timestamp (up to the hour), URL, and user
+    :param dat: An RDD from our log data
+    """
+    _, timestamp, url, user = dat.split(' ')
+    hourpart = timestamp[:13]
+    return '{} {} {}'.format(hourpart, url, user)
+
+# Load the logs and community datasets
+logs = sc.textFile('s3://aws-logs-607380799823-us-east-2/hw7/hw7_logs*.txt')
+community = sc.textFile('s3://aws-logs-607380799823-us-east-2/hw7/hw7_community.txt')
+
+# Form tuples for joining
+community_tuples = community.map(lambda x: tuple(x.split('\t')))
+logs_tuples = logs.map(lambda x: tuple([x.split(' ')[3], None]))
+
+# Join the RDDs, form tuples with community as keys, and get grouped counts
+joined = logs_tuples.join(community_tuples)
+community_keys = joined.map(lambda x: tuple([x[1][1], 1]))
+counts = community_keys.reduceByKey(lambda x, y: x + y)
+
+counts.coalesce(1).saveAsTextFile("hdfs:/output_p4/")
 ```
 
 We submit the Spark job:
@@ -4683,6 +4890,45 @@ The full logs are in **p4_sparklogs.zip**.
 **Task 1**
 The Spark program `p5_t1.py`:
 ```
+"""
+Get count of unique URLs by hour
+Only perform the counts for the URLs specified in "filter_list"
+"""
+
+from pyspark import SparkContext, SparkConf
+from datetime import datetime
+
+
+conf = SparkConf().setAppName("p5_t1")
+sc = SparkContext(conf = conf)
+
+def extract_hourpart_url(dat):
+    """
+    Return timestamp (up to the hour) and the URL
+    :param dat: An RDD from our log data
+    """
+    _, timestamp, url, _ = dat.split(' ')
+    hourpart = timestamp[:13]
+    return '{} {}'.format(hourpart, url)
+
+# Only include these URLs
+filter_list = ['http://example.com/?url=0',
+               'http://example.com/?url=9',
+               'http://example.com/?url=3']
+
+logs = sc.textFile('hdfs:/hw7/hw7_logs*.txt')
+# Convert full timestamp to only hour and return only needed fields
+hour_url = logs.map(extract_hourpart_url)
+
+# Filter the logs
+hour_url = hour_url.filter(lambda x: any([i in x for i in filter_list]))
+
+# Form key/values, and get grouped counts
+# Note: duplicates are present here but will be allowed for this problem
+tuples = hour_url.map(lambda x: tuple([x.split(' ')[0], 1]))
+q1 = tuples.reduceByKey(lambda x, y: x + y)
+
+q1.coalesce(1).saveAsTextFile("hdfs:/output_p5_t1/")
 ```
 
 We run the Spark job:
@@ -4922,6 +5168,46 @@ The full log appears in **p5_t1_sparklogs.zip**.
 **Task 2**
 The Spark program `p5_t2.py`:
 ```
+"""
+Get count of unique URLs by hour
+Only perform the counts for the URLs specified in "filter_list" that is broadcast
+"""
+
+from pyspark import SparkContext, SparkConf
+from datetime import datetime
+
+
+conf = SparkConf().setAppName("p5_t2")
+sc = SparkContext(conf = conf)
+
+def extract_hourpart_url(dat):
+    """
+    Return timestamp (up to the hour) and the URL
+    :param dat: An RDD from our log data
+    """
+    _, timestamp, url, _ = dat.split(' ')
+    hourpart = timestamp[:13]
+    return '{} {}'.format(hourpart, url)
+
+# Only include these URLs--brodcast this to the Spark cluster
+filter_list = ['http://example.com/?url=0',
+               'http://example.com/?url=9',
+               'http://example.com/?url=3']
+bc_list = sc.broadcast(filter_list)
+
+logs = sc.textFile('hdfs:/hw7/hw7_logs*.txt')
+# Convert full timestamp to only hour and return only needed fields
+hour_url = logs.map(extract_hourpart_url)
+
+# Filter the logs using the broadcast data
+hour_url = hour_url.filter(lambda x: any([i in x for i in bc_list.value]))
+
+# Form key/values, and get grouped counts
+# Note: duplicates are present here but will be allowed for this problem
+tuples = hour_url.map(lambda x: tuple([x.split(' ')[0], 1]))
+q1 = tuples.reduceByKey(lambda x, y: x + y)
+
+q1.coalesce(1).saveAsTextFile("hdfs:/output_p5_t2/")
 ```
 
 We run the job again, this time using broadcast variables:

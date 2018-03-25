@@ -18,7 +18,7 @@ def extract_hourpart_url_user(dat):
     hourpart = timestamp[:13]
     return '{} {} {}'.format(hourpart, url, user)
 
-logs = sc.textFile('/Users/david.shaub/PBDP/hw7/hw7_logs*.txt').distinct()
+logs = sc.textFile('s3://aws-logs-607380799823-us-east-2/hw7/hw7_logs*.txt').repartition(200).distinct()
 # Extract hour, url, and user and remove duplicates
 hour_url_user = logs.map(extract_hourpart_url_user).distinct()
 
@@ -26,4 +26,4 @@ hour_url_user = logs.map(extract_hourpart_url_user).distinct()
 tuples = hour_url_user.map(lambda x: tuple([x.split(' ')[0] + ' ' + x.split(' ')[1], 1]))
 q2 = tuples.groupByKey().mapValues(sum)
 
-q2.coalesce(1).saveAsTextFile("output_p3_groupbykey/")
+q2.coalesce(1).saveAsTextFile("hdfs:/output_p3_groupbykey/")
