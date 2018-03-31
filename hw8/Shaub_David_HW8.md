@@ -106,8 +106,7 @@ $ head output_unique_url/part-00000
 2018-02-26T12:00:00 http://example.com/?url=4
 ```
 
-![Database creation in MariaDB](show_databases.png)
-
+## Problem 1
 
 Now we create the databases and tables in MariDB to hold these results:
 ```
@@ -128,6 +127,9 @@ MariaDB [(none)]> show databases;
 MariaDB [(none)]> use hw8;
 Database changed
 ```
+
+![Database creation in MariaDB](show_databases.png)
+
 
 The schemas for the table we create will be very simple since we hold each url/user in its own record. For report 1, we will create a table with columns for the timestamp (always aligned to the hour) and the URL:
 ```
@@ -171,6 +173,7 @@ Records: 11960  Deleted: 0  Skipped: 0  Warnings: 0
 ```
 
 The daily reports are now very easy to generate in SQL, and if we needed to generate reports based on some frequency other than daily, we all we need to do is modify our grouping condition.
+
 **Report 1**
 ```
 MariaDB [hw8]> select date(hour) as day, count(distinct(url)) as num_url from hour_url group by day order by day asc;
@@ -217,8 +220,123 @@ MariaDB [hw8]> select date(hour) as day, count(distinct(user)) as num_users from
 13 rows in set (0.06 sec)
 ```
 
-## Problem 1
-
 ## Problem 2
 
+We install mongodb from the EPEL repos.
+```
+$ mongo --version
+MongoDB shell version: 2.6.12
+```
+
+We load our data into MongoDB by changing the delimiter to a comma and using `mongoimport`:
+```
+$ tr " " "," <  ~/PBDP/hw8/output_unique_url/part-00000 | mongoimport -d hw8 -c hour_url --type csv -f hour,url
+connected to: 127.0.0.1
+2018-03-31T18:12:55.836+0000 check 9 2990
+2018-03-31T18:12:55.838+0000 imported 2990 objects
+
+$ tr " " "," <  ~/PBDP/hw8/output_unique_users/part-00000 | mongoimport -d hw8 -c hour_user --type csv -f hour,user
+connected to: 127.0.0.1
+2018-03-31T18:13:15.341+0000 check 9 11960
+2018-03-31T18:13:15.369+0000 imported 11960 objects
+```
+
+We enter the Mongo shell and see that our dabase and collections have been populated.
+
+![Mongo database and collections from shell](mongo_databases.png)
+
+The schema we use for our two collections is essentially the same that we used for MariaDB: one field in the JSON contains the timestamp and the other contains the user/URL.
+```
+> db.hour_url.find()
+{ "_id" : ObjectId("5abfe1535397feaeda6272e8"), "hour" : "2018-02-21T13:00:00", "url" : "http://example.com/?url=8" }
+{ "_id" : ObjectId("5abfe1535397feaeda6272e9"), "hour" : "2018-02-27T09:00:00", "url" : "http://example.com/?url=7" }
+{ "_id" : ObjectId("5abfe1535397feaeda6272ea"), "hour" : "2018-02-25T07:00:00", "url" : "http://example.com/?url=7" }
+{ "_id" : ObjectId("5abfe1535397feaeda6272eb"), "hour" : "2018-03-02T05:00:00", "url" : "http://example.com/?url=7" }
+{ "_id" : ObjectId("5abfe1535397feaeda6272ec"), "hour" : "2018-03-01T18:00:00", "url" : "http://example.com/?url=4" }
+{ "_id" : ObjectId("5abfe1535397feaeda6272ed"), "hour" : "2018-02-20T19:00:00", "url" : "http://example.com/?url=5" }
+{ "_id" : ObjectId("5abfe1535397feaeda6272ee"), "hour" : "2018-03-04T10:00:00", "url" : "http://example.com/?url=7" }
+{ "_id" : ObjectId("5abfe1535397feaeda6272ef"), "hour" : "2018-03-01T07:00:00", "url" : "http://example.com/?url=8" }
+{ "_id" : ObjectId("5abfe1535397feaeda6272f0"), "hour" : "2018-02-27T06:00:00", "url" : "http://example.com/?url=0" }
+{ "_id" : ObjectId("5abfe1535397feaeda6272f1"), "hour" : "2018-02-26T12:00:00", "url" : "http://example.com/?url=4" }
+{ "_id" : ObjectId("5abfe1535397feaeda6272f2"), "hour" : "2018-03-02T04:00:00", "url" : "http://example.com/?url=6" }
+{ "_id" : ObjectId("5abfe1535397feaeda6272f3"), "hour" : "2018-03-01T14:00:00", "url" : "http://example.com/?url=0" }
+{ "_id" : ObjectId("5abfe1535397feaeda6272f4"), "hour" : "2018-02-21T01:00:00", "url" : "http://example.com/?url=1" }
+{ "_id" : ObjectId("5abfe1535397feaeda6272f5"), "hour" : "2018-02-21T03:00:00", "url" : "http://example.com/?url=7" }
+{ "_id" : ObjectId("5abfe1535397feaeda6272f6"), "hour" : "2018-02-27T10:00:00", "url" : "http://example.com/?url=5" }
+{ "_id" : ObjectId("5abfe1535397feaeda6272f7"), "hour" : "2018-03-03T20:00:00", "url" : "http://example.com/?url=7" }
+{ "_id" : ObjectId("5abfe1535397feaeda6272f8"), "hour" : "2018-02-28T07:00:00", "url" : "http://example.com/?url=4" }
+{ "_id" : ObjectId("5abfe1535397feaeda6272f9"), "hour" : "2018-02-26T06:00:00", "url" : "http://example.com/?url=3" }
+{ "_id" : ObjectId("5abfe1535397feaeda6272fa"), "hour" : "2018-02-26T13:00:00", "url" : "http://example.com/?url=9" }
+{ "_id" : ObjectId("5abfe1535397feaeda6272fb"), "hour" : "2018-02-22T21:00:00", "url" : "http://example.com/?url=2" }
+Type "it" for more
+
+> db.hour_user.find()
+{ "_id" : ObjectId("5abfe0045397feaeda624430"), "hour" : "2018-02-23T05:00:00", "user" : "User_28" }
+{ "_id" : ObjectId("5abfe0045397feaeda624431"), "hour" : "2018-03-01T10:00:00", "user" : "User_30" }
+{ "_id" : ObjectId("5abfe0045397feaeda624432"), "hour" : "2018-02-22T02:00:00", "user" : "User_1" }
+{ "_id" : ObjectId("5abfe0045397feaeda624433"), "hour" : "2018-02-23T12:00:00", "user" : "User_19" }
+{ "_id" : ObjectId("5abfe0045397feaeda624434"), "hour" : "2018-03-04T14:00:00", "user" : "User_37" }
+{ "_id" : ObjectId("5abfe0045397feaeda624435"), "hour" : "2018-02-24T10:00:00", "user" : "User_16" }
+{ "_id" : ObjectId("5abfe0045397feaeda624436"), "hour" : "2018-03-01T02:00:00", "user" : "User_26" }
+{ "_id" : ObjectId("5abfe0045397feaeda624437"), "hour" : "2018-02-23T04:00:00", "user" : "User_14" }
+{ "_id" : ObjectId("5abfe0045397feaeda624438"), "hour" : "2018-02-20T08:00:00", "user" : "User_5" }
+{ "_id" : ObjectId("5abfe0045397feaeda624439"), "hour" : "2018-02-21T20:00:00", "user" : "User_32" }
+{ "_id" : ObjectId("5abfe0045397feaeda62443a"), "hour" : "2018-03-02T06:00:00", "user" : "User_0" }
+{ "_id" : ObjectId("5abfe0045397feaeda62443b"), "hour" : "2018-03-01T00:00:00", "user" : "User_19" }
+{ "_id" : ObjectId("5abfe0045397feaeda62443c"), "hour" : "2018-02-21T14:00:00", "user" : "User_1" }
+{ "_id" : ObjectId("5abfe0045397feaeda62443d"), "hour" : "2018-02-22T12:00:00", "user" : "User_0" }
+{ "_id" : ObjectId("5abfe0045397feaeda62443e"), "hour" : "2018-03-02T14:00:00", "user" : "User_39" }
+{ "_id" : ObjectId("5abfe0045397feaeda62443f"), "hour" : "2018-02-21T05:00:00", "user" : "User_31" }
+{ "_id" : ObjectId("5abfe0045397feaeda624440"), "hour" : "2018-02-28T03:00:00", "user" : "User_27" }
+{ "_id" : ObjectId("5abfe0045397feaeda624441"), "hour" : "2018-02-21T19:00:00", "user" : "User_36" }
+{ "_id" : ObjectId("5abfe0045397feaeda624442"), "hour" : "2018-03-01T21:00:00", "user" : "User_27" }
+{ "_id" : ObjectId("5abfe0045397feaeda624443"), "hour" : "2018-03-03T19:00:00", "user" : "User_15" }
+Type "it" for more
+```
+
+**Report 1**
+```
+> db.hour_url.aggregate([ 
+{$project : {day :  {$substr: ["$hour", 0, 10]}, url : "$url"}},
+{$group : {_id: "$day", uniqueCount : {$addToSet : "$url"}}},
+{$project : {day : 1, num_url : {$size : "$uniqueCount"}}},
+{$sort : {_id : 1}},
+])
+{ "_id" : "2018-02-20", "num_url" : 10 }
+{ "_id" : "2018-02-21", "num_url" : 10 }
+{ "_id" : "2018-02-22", "num_url" : 10 }
+{ "_id" : "2018-02-23", "num_url" : 10 }
+{ "_id" : "2018-02-24", "num_url" : 10 }
+{ "_id" : "2018-02-25", "num_url" : 10 }
+{ "_id" : "2018-02-26", "num_url" : 10 }
+{ "_id" : "2018-02-27", "num_url" : 10 }
+{ "_id" : "2018-02-28", "num_url" : 10 }
+{ "_id" : "2018-03-01", "num_url" : 10 }
+{ "_id" : "2018-03-02", "num_url" : 10 }
+{ "_id" : "2018-03-03", "num_url" : 10 }
+{ "_id" : "2018-03-04", "num_url" : 10 }
+```
+
+**Report 2**
+```
+$ db.hour_user.aggregate([ 
+{$project : {day :  {$substr: ["$hour", 0, 10]}, user : "$user"}},
+{$group : {_id: "$day", uniqueCount : {$addToSet : "$user"}}},
+{$project : {day : 1, num_user : {$size : "$uniqueCount"}}},
+{$sort : {_id : 1}},
+])
+{ "_id" : "2018-02-20", "num_user" : 40 }
+{ "_id" : "2018-02-21", "num_user" : 40 }
+{ "_id" : "2018-02-22", "num_user" : 40 }
+{ "_id" : "2018-02-23", "num_user" : 40 }
+{ "_id" : "2018-02-24", "num_user" : 40 }
+{ "_id" : "2018-02-25", "num_user" : 40 }
+{ "_id" : "2018-02-26", "num_user" : 40 }
+{ "_id" : "2018-02-27", "num_user" : 40 }
+{ "_id" : "2018-02-28", "num_user" : 40 }
+{ "_id" : "2018-03-01", "num_user" : 40 }
+{ "_id" : "2018-03-02", "num_user" : 40 }
+{ "_id" : "2018-03-03", "num_user" : 40 }
+{ "_id" : "2018-03-04", "num_user" : 40 }
+```
 ## Problem 3

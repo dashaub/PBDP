@@ -109,6 +109,3 @@ ENV/
 *.tar.gz
 *.zip
 
-# output files
-output_unique_url
-output_unique_users
