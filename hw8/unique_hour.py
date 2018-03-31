@@ -15,7 +15,7 @@ def extract_hourpart_url(dat):
     :param dat: An RDD from our log data
     """
     _, timestamp, url, _ = dat.split(' ')
-    hourpart = timestamp[:13]
+    hourpart = timestamp[:13] + ':00:00'
     return '{} {}'.format(hourpart, url)
 
 logs = sc.textFile('hw7_logs*.txt')
