@@ -1,12 +1,12 @@
 """
-Get count of unique URLs by hour
+Get unique URLs by hour
 """
 
 from pyspark import SparkContext, SparkConf
 from datetime import datetime
 
 
-conf = SparkConf().setAppName("p1_q1")
+conf = SparkConf().setAppName("unique_hour")
 sc = SparkContext(conf = conf)
 
 def extract_hourpart_url(dat):
@@ -21,8 +21,5 @@ def extract_hourpart_url(dat):
 logs = sc.textFile('hw7_logs*.txt')
 # Convert full timestamp to only hour and return only needed fields and remove duplicate URLs
 hour_url = logs.map(extract_hourpart_url).distinct()
-# Form key/values, and get grouped counts
-tuples = hour_url.map(lambda x: tuple([x.split(' ')[0], 1]))
-q1 = tuples.reduceByKey(lambda x, y: x + y)
 
-q1.coalesce(1).saveAsTextFile("output_p1_q1/")
+hour_url.coalesce(1).saveAsTextFile("output_unique_hour/")
