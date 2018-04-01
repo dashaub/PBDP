@@ -2,7 +2,7 @@
 Get unique URLs by hour
 """
 
-from pyspark import SparkContext, SparkConf
+from pyspark import SparkContext, SparkConf, SQLContext
 from pyspark.sql import Row
 from datetime import datetime
 
@@ -25,10 +25,11 @@ hour_url = logs.map(extract_hourpart_url).distinct()
 
 # Prepare the results in a dataframe
 hour_url = hour_url.map(lambda x: Row(hour=x.split(' ')[0], url=x.split(' ')[1]))
+sqlContext = SQLContext(sc)
 df = sqlContext.createDataFrame(hour_url)
 
 # Save the results to MariaDB
-{'user':'root', 'driver':'org.mariadb.jdbc.Driver'}
+properties={'user':'root', 'driver':'org.mariadb.jdbc.Driver'}
 table='hour_url'
 db_locatio='jdbc:mysql://localhost:3306/hw8_spark'
 df.write.mode('overwrite').jdbc(url=db_locatio, table=table, mode='overwrite', properties=properties)
