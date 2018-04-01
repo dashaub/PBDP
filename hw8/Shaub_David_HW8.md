@@ -7,7 +7,7 @@ date: 2018-03-31
 
 ## Setup
 
-We'll modify the Spark jobs we created in HW7 (`p1_q1.py` and `p1_q2.py`) to now output tuples with the hour and user for `unique_users.py` and the hour and url for `unique_url.py`. While we could collect the unique url and users for each hour into an array, this nested data structure isn't quite as nice to work with in MariaDB, so we will prefer flat records for the output of our batch job--even though there will be more of them.
+We'll modify the Spark jobs we created in HW7 (`p1_q1.py` and `p1_q2.py`) to now output tuples with the hour and user for `unique_users.py` and the hour and url for `unique_url.py`. While we could collect the unique url and users for each hour into an array, this nested data structure isn't quite as nice to work with in MariaDB, so we will prefer flat records for the output of our batch job--even though there will be more records per hour instead of only one.
 
 `unique_url.py`:
 ```
@@ -106,7 +106,25 @@ $ head output_unique_url/part-00000
 2018-02-26T12:00:00 http://example.com/?url=4
 ```
 
+
+
 ## Problem 1
+
+```
+$ mysql --version
+mysql  Ver 15.1 Distrib 10.2.14-MariaDB, for osx10.11 (x86_64) using readline 5.1
+$ mysql
+MariaDB [(none)]> show databases;
++--------------------+
+| Database           |
++--------------------+
+| hw8                |
+| information_schema |
+| mysql              |
+| performance_schema |
++--------------------+
+4 rows in set (0.00 sec)
+```
 
 Now we create the databases and tables in MariDB to hold these results:
 ```
@@ -228,7 +246,7 @@ $ mongo --version
 MongoDB shell version: 2.6.12
 ```
 
-We load our data into MongoDB by changing the delimiter to a comma and using `mongoimport`:
+We load our data into MongoDB by changing the delimiter to a comma; the result is piped to `mongoimport` with the specified field names, database, and collection:
 ```
 $ tr " " "," <  ~/PBDP/hw8/output_unique_url/part-00000 | mongoimport -d hw8 -c hour_url --type csv -f hour,url
 connected to: 127.0.0.1
@@ -241,11 +259,9 @@ connected to: 127.0.0.1
 2018-03-31T18:13:15.369+0000 imported 11960 objects
 ```
 
-We enter the Mongo shell and see that our dabase and collections have been populated.
-
 ![Mongo database and collections from shell](mongo_databases.png)
 
-The schema we use for our two collections is essentially the same that we used for MariaDB: one field in the JSON contains the timestamp and the other contains the user/URL.
+We enter the Mongo shell and see that our dabase and collections have been populated. The schema we use for our two collections is essentially the same that we used for MariaDB: one field in the JSON contains the timestamp `hour` and the other contains the `user` or `url`. We can also see that our records have been inserted:
 ```
 > db.hour_url.find()
 { "_id" : ObjectId("5abfe1535397feaeda6272e8"), "hour" : "2018-02-21T13:00:00", "url" : "http://example.com/?url=8" }
@@ -294,6 +310,13 @@ Type "it" for more
 Type "it" for more
 ```
 
+Our Mongo queries will consist of the following steps inside an aggregation pipeline:
+
+1. Transform the full timestamp into its day part and select this field and the url or user--depending on the report.
+2. Group the results based on day and build a set without duplicates.
+3. Count the number of elements in the grouped set from step 3.
+4. Sort the results by the date.
+
 **Report 1**
 ```
 > db.hour_url.aggregate([ 
@@ -339,4 +362,29 @@ $ db.hour_user.aggregate([
 { "_id" : "2018-03-03", "num_user" : 40 }
 { "_id" : "2018-03-04", "num_user" : 40 }
 ```
+
+Our schema and strategies were very similar for both MariaDB and MongoDB, and both used essentially the same schema. An advantage of this approach is that would could very easily generate new monthly reports as well (assuming the datasizes do not grow too large). If we were using these daily views very frequently (with no need for reports with granularity less than a day) and wanted to also generate monthly reports, we might consider modifying the Spark job to instead generate all the unique URLs/users for each day. This would keep data sizes small and allow us to generate the monthly report similar to how we did here very quickly.
+
 ## Problem 3
+
+We modify our Spark jobs again. The major difference here is we will collect the final results in a dataframe to write to MariaDB with the JDBC connector.
+
+`unique_url_mariadb.py`
+```
+```
+
+`unique_users_mariadb.py`
+```
+```
+
+Now we run the spark jobs and include the MariaDB ODBC connector jar downloaded from https://downloads.mariadb.com/Connectors/java/connector-java-2.2.3/mariadb-java-client-2.2.3.jar.
+
+We launch the first job:
+```
+
+```
+
+We launch the second job:
+```
+
+```
