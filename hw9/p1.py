@@ -2,9 +2,10 @@ from pyspark import SparkContext, SparkConf
 from pyspark.streaming import StreamingContext
 import os
 
-conf = SparkConf().setAppName('p1')#.setMaster("local[*]")
+conf = SparkConf().setAppName('p1').setMaster("local[*]")
 sc = SparkContext(conf=conf)
-ssc = StreamingContext(sc, 1)
+sc.setLogLevel('ERROR')
+ssc = StreamingContext(sc, 2)
 
 
 def extract_url(line):
@@ -17,10 +18,7 @@ def extract_url(line):
     return (url, 1)
 
 
-
-lines = ssc.textFileStream('input_data')
-
-sc.setLogLevel('ERROR')
+lines = ssc.textFileStream('data_input')
 
 
 url_count = lines.map(extract_url).reduceByKey(lambda x, y: x + y)
