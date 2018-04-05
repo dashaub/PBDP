@@ -8,6 +8,7 @@ fi
 stage_dir=$1
 input_dir=$2
 
+rm ${input_dir}/*.txt
 input_files=`find $stage_dir -type f | sort`
 
 for file in $input_files
