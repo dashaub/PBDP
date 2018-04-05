@@ -762,6 +762,48 @@ Time: 2018-04-05 14:36:05
 
 ## Problem 3
 
+Our job `p3_aggregation.py` will peform the count of distinct users in each window using the traditional Spark aggregation techniques. We will use a 30 second window and slide it by 30 seconds each so that the windows are non-overlapping.
+```
+from pyspark import SparkContext, SparkConf
+from pyspark.streaming import StreamingContext
+import os
+
+conf = SparkConf().setAppName('p3_aggregation').setMaster("local[*]")
+sc = SparkContext(conf=conf)
+sc.setLogLevel('ERROR')
+ssc = StreamingContext(sc, 1)
+
+def updateFunction(newValues, runningCount):
+    """
+    Update the running count
+    :param newValues: the number of records processed in the current window
+    :param runningCount: the current running sum to increment
+    """
+    if runningCount is None:
+        runningCount = 0
+    return sum(newValues, runningCount)
+
+
+def extract_user(line):
+    """
+    Parse a line with UUID, timestqmap, URL, and user. Return the user.
+    :param line: A string containing a record
+    """
+    (uuid, timestamp, url, user) = line.strip().split(' ')
+    return user
+
+print 'Unique users in window'
+lines = ssc.textFileStream('data_input')
+users = lines.map(extract_user).window(30, 30).transform(lambda rdd: rdd.distinct())
+users.pprint(100)
+users.count().pprint()
+
+ssc.start()
+ssc.awaitTermination()
+ssc.stop()
+
+```
+
 We see that there are 40 unique users, so we will modify our `pprint()` to print at least 40 results for 30 second batch.
 ```
 $ awk '{ print $4 }' data_stage/hw9_logs_*.txt | sort | uniq
@@ -807,4 +849,155 @@ User_8
 User_9
 $ awk '{ print $4 }' data_stage/hw9_logs_*.txt | sort | uniq | wc -l
       40
+```
+
+
+We launch the job
+```
+$ spark-submit p3_aggregation.py 
+2018-04-05 15:39:43 WARN  NativeCodeLoader:62 - Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+2018-04-05 15:39:43 INFO  SparkContext:54 - Running Spark version 2.3.0
+2018-04-05 15:39:44 INFO  SparkContext:54 - Submitted application: p3_aggregation
+2018-04-05 15:39:44 INFO  SecurityManager:54 - Changing view acls to: david.shaub
+2018-04-05 15:39:44 INFO  SecurityManager:54 - Changing modify acls to: david.shaub
+2018-04-05 15:39:44 INFO  SecurityManager:54 - Changing view acls groups to: 
+2018-04-05 15:39:44 INFO  SecurityManager:54 - Changing modify acls groups to: 
+2018-04-05 15:39:44 INFO  SecurityManager:54 - SecurityManager: authentication disabled; ui acls disabled; users  with view permissions: Set(david.shaub); groups with view permissions: Set(); users  with modify permissions: Set(david.shaub); groups with modify permissions: Set()
+
+```
+
+When the job runs, we see that all logs were processed during two 30-second windows. In each window, 40 distinct users were encountered. We see that no duplicate users appear _within_ a window, but duplicate users do appear _across_ windows--as we would expect.
+```
+2018-04-05 15:39:44 INFO  Executor:54 - Starting executor ID driver on host localhost
+2018-04-05 15:39:44 INFO  Utils:54 - Successfully started service 'org.apache.spark.network.netty.NettyBlockTransferService' on port 64559.
+2018-04-05 15:39:44 INFO  NettyBlockTransferService:54 - Server created on usmac2752dshau.schq.secious.com:64559
+2018-04-05 15:39:44 INFO  BlockManager:54 - Using org.apache.spark.storage.RandomBlockReplicationPolicy for block replication policy
+2018-04-05 15:39:44 INFO  BlockManagerMaster:54 - Registering BlockManager BlockManagerId(driver, usmac2752dshau.schq.secious.com, 64559, None)
+2018-04-05 15:39:44 INFO  BlockManagerMasterEndpoint:54 - Registering block manager usmac2752dshau.schq.secious.com:64559 with 366.3 MB RAM, BlockManagerId(driver, usmac2752dshau.schq.secious.com, 64559, None)
+2018-04-05 15:39:44 INFO  BlockManagerMaster:54 - Registered BlockManager BlockManagerId(driver, usmac2752dshau.schq.secious.com, 64559, None)
+2018-04-05 15:39:44 INFO  BlockManager:54 - Initialized BlockManager: BlockManagerId(driver, usmac2752dshau.schq.secious.com, 64559, None)
+2018-04-05 15:39:45 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@58c1dd51{/metrics/json,null,AVAILABLE,@Spark}
+Unique users in window
+-------------------------------------------
+Time: 2018-04-05 15:40:15
+-------------------------------------------
+User_8
+User_38
+User_9
+User_10
+User_39
+User_29
+User_2
+User_11
+User_25
+User_28
+User_32
+User_3
+User_12
+User_24
+User_33
+User_0
+User_13
+User_27
+User_30
+User_1
+User_14
+User_26
+User_18
+User_21
+User_31
+User_6
+User_15
+User_19
+User_36
+User_7
+User_16
+User_20
+User_23
+User_37
+User_4
+User_17
+User_22
+User_34
+User_5
+User_35
+
+-------------------------------------------
+Time: 2018-04-05 15:40:15
+-------------------------------------------
+40
+
+-------------------------------------------
+Time: 2018-04-05 15:40:45
+-------------------------------------------
+User_2
+User_30
+User_13
+User_26
+User_5
+User_21
+User_3
+User_38
+User_31
+User_14
+User_15
+User_0
+User_36
+User_20
+User_39
+User_29
+User_18
+User_16
+User_1
+User_37
+User_23
+User_8
+User_28
+User_19
+User_10
+User_17
+User_25
+User_6
+User_34
+User_22
+User_9
+User_32
+User_11
+User_7
+User_24
+User_35
+User_33
+User_12
+User_27
+User_4
+
+-------------------------------------------
+Time: 2018-04-05 15:40:45
+-------------------------------------------
+40
+
+-------------------------------------------
+Time: 2018-04-05 15:41:15
+-------------------------------------------
+
+-------------------------------------------
+Time: 2018-04-05 15:41:15
+-------------------------------------------
+
+-------------------------------------------
+Time: 2018-04-05 15:41:45
+-------------------------------------------
+
+-------------------------------------------
+Time: 2018-04-05 15:41:45
+-------------------------------------------
+
+-------------------------------------------
+Time: 2018-04-05 15:42:15
+-------------------------------------------
+
+-------------------------------------------
+Time: 2018-04-05 15:42:15
+-------------------------------------------
+
 ```
