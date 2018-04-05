@@ -10,17 +10,16 @@ def functionToCreateContext():
     sc = SparkContext(conf=conf)
     sc.setLogLevel('ERROR')
     ssc = StreamingContext(sc, 1)
-    lines = ssc.textFileStream('data_input')
     ssc.checkpoint('checkpoints')
     return ssc
 
-ssc = StreamingContext.getOrCreate(checkpointDirectory, functionToCreateContext)
+ssc = StreamingContext.getOrCreate('checkpoints', functionToCreateContext)
 
 def updateFunction(newValues, runningCount):
     """
     Update the running count
-    :param newValues: 
-    :param runningCount: 
+    :param newValues: the number of records processed in the current window
+    :param runningCount: the current running sum to increment
     """
     if runningCount is None:
         runningCount = 0
@@ -38,11 +37,12 @@ def extract_url(line):
 
 
 
-
-
+print 'Counts in window'
+lines = ssc.textFileStream('data_input')
 url_count = lines.map(extract_url).reduceByKey(lambda x, y: x + y)
 url_count.pprint()
 
+print 'Cumulative counts'
 running_counts = url_count.updateStateByKey(updateFunction)
 running_counts.pprint()
 
