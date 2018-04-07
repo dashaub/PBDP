@@ -7,7 +7,7 @@ fi
 
 stage_dir=$1
 input_dir=$2
-
+rm ${input_dir}/*
 while true
 do
 	input_files=`find $stage_dir -type f | sort`

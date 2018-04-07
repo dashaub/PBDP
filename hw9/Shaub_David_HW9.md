@@ -762,6 +762,8 @@ Time: 2018-04-05 14:36:05
 
 ## Problem 3
 
+**Aggregation**
+
 Our job `p3_aggregation.py` will peform the count of distinct users in each window using the traditional Spark aggregation techniques. We will use a 30 second window and slide it by 30 seconds each so that the windows are non-overlapping.
 ```
 from pyspark import SparkContext, SparkConf
@@ -772,16 +774,6 @@ conf = SparkConf().setAppName('p3_aggregation').setMaster("local[*]")
 sc = SparkContext(conf=conf)
 sc.setLogLevel('ERROR')
 ssc = StreamingContext(sc, 1)
-
-def updateFunction(newValues, runningCount):
-    """
-    Update the running count
-    :param newValues: the number of records processed in the current window
-    :param runningCount: the current running sum to increment
-    """
-    if runningCount is None:
-        runningCount = 0
-    return sum(newValues, runningCount)
 
 
 def extract_user(line):
@@ -999,5 +991,6 @@ Time: 2018-04-05 15:42:15
 -------------------------------------------
 Time: 2018-04-05 15:42:15
 -------------------------------------------
-
 ```
+
+** HyperLogLog**

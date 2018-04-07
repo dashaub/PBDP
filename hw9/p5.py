@@ -2,7 +2,7 @@ from pyspark import SparkContext, SparkConf
 from pyspark.streaming import StreamingContext
 import os
 
-conf = SparkConf().setAppName('p3_aggregation').setMaster("local[*]")
+conf = SparkConf().setAppName('p5').setMaster("local[*]")
 sc = SparkContext(conf=conf)
 sc.setLogLevel('ERROR')
 ssc = StreamingContext(sc, 1)
@@ -14,13 +14,12 @@ def extract_user(line):
     :param line: A string containing a record
     """
     (uuid, timestamp, url, user) = line.strip().split(' ')
-    return user
+    return url
 
-print 'Unique users in window'
+print 'Count of each URL in window'
 lines = ssc.textFileStream('data_input')
-users = lines.map(extract_user).window(30, 30).transform(lambda rdd: rdd.distinct())
-users.pprint(100)
-users.count().pprint()
+url_count = lines.map(extract_user).window(5, 5).transform(lambda rdd: rdd.distinct()).reduceByKey(lambda x, y: x + y)
+url_count.pprint()
 
 ssc.start()
 ssc.awaitTermination()
