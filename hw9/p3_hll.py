@@ -6,7 +6,7 @@ import os
 conf = SparkConf().setAppName('p3_hll').setMaster("local[*]")
 sc = SparkContext(conf=conf)
 sc.setLogLevel('ERROR')
-ssc = StreamingContext(sc, 5)
+ssc = StreamingContext(sc, 1)
 
 
 def extract_user(line):
@@ -17,15 +17,21 @@ def extract_user(line):
     (uuid, timestamp, url, user) = line.strip().split(' ')
     return user
 
+def write_results(count):
+    """
+    Write the integer to a file
+    """
+    filename = 'hll_results'
+    with open(filename, 'a') as res:
+        res.write(str(count) + '\n')
+
 print 'Apprxoimate unique users in window'
 lines = ssc.textFileStream('data_input')
-users = lines.map(extract_user)
-# This returns an int that needs to be transformed into something Spark can print each window
-approx_unique = users.foreachRDD(lambda rdd: rdd.countApproxDistinct(relativeSD=0.01))
-# We now attempt to take this int and place it into a RDD and then dstream so we can print the results
-#approx_rdd = ssc.queueStream([sc.parallelize([approx_unique])])
-#approx_rdd.pprint()
-approx_unique.pprint()
+users = lines.map(extract_user).window(5, 5)
+
+# countApproxDistinct returns an integer which we cannot print to the console using pprint()
+# Instead we will pass this to a function that writes the results to a file
+approx_unique = users.foreachRDD(lambda rdd: write_results(rdd.countApproxDistinct(relativeSD=0.8)))
 
 ssc.start()
 ssc.awaitTermination()

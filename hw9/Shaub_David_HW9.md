@@ -992,10 +992,284 @@ Time: 2018-04-05 15:42:15
 -------------------------------------------
 ```
 
-** HyperLogLog**
+**HyperLogLog**
 
+Our job using HyperLogLog. We will use a very conservative `relativeSD=0.01` first, which means we should get the correct count of 40:
+```
+from pyspark import SparkContext, SparkConf
+from pyspark.streaming import StreamingContext
+from pyspark.sql.functions import approx_count_distinct
+import os
+
+conf = SparkConf().setAppName('p3_hll').setMaster("local[*]")
+sc = SparkContext(conf=conf)
+sc.setLogLevel('ERROR')
+ssc = StreamingContext(sc, 1)
+
+
+def extract_user(line):
+    """
+    Parse a line with UUID, timestqmap, URL, and user. Return the user.
+    :param line: A string containing a record
+    """
+    (uuid, timestamp, url, user) = line.strip().split(' ')
+    return user
+
+def write_results(count):
+    """
+    Write the integer to a file
+    """
+    filename = 'hll_results'
+    with open(filename, 'a') as res:
+        res.write(str(count) + '\n')
+
+print 'Apprxoimate unique users in window'
+lines = ssc.textFileStream('data_input')
+users = lines.map(extract_user).window(5, 5)
+
+# countApproxDistinct returns an integer which we cannot print to the console using pprint()
+# Instead we will pass this to a function that writes the results to a file
+approx_unique = users.foreachRDD(lambda rdd: write_results(rdd.countApproxDistinct(relativeSD=0.01)))
+
+ssc.start()
+ssc.awaitTermination()
+ssc.stop()
+```
+
+We launch the job. The console output is not very interesting since the job writes the results to a file `hll_results` instead, and Spark does not print anything to console while the streaming occurs:
+```
+$ spark-submit p3_hll.py 
+2018-04-07 19:04:42 WARN  NativeCodeLoader:62 - Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+2018-04-07 19:04:43 INFO  SparkContext:54 - Running Spark version 2.3.0
+2018-04-07 19:04:43 INFO  SparkContext:54 - Submitted application: p3_hll
+2018-04-07 19:04:43 INFO  SecurityManager:54 - Changing view acls to: david.shaub
+2018-04-07 19:04:43 INFO  SecurityManager:54 - Changing modify acls to: david.shaub
+2018-04-07 19:04:43 INFO  SecurityManager:54 - Changing view acls groups to: 
+2018-04-07 19:04:43 INFO  SecurityManager:54 - Changing modify acls groups to: 
+2018-04-07 19:04:43 INFO  SecurityManager:54 - SecurityManager: authentication disabled; ui acls disabled; users  with view permissions: Set(david.shaub); groups with view permissions: Set(); users  with modify permissions: Set(david.shaub); groups with modify permissions: Set()
+2018-04-07 19:04:43 INFO  Utils:54 - Successfully started service 'sparkDriver' on port 51821.
+2018-04-07 19:04:43 INFO  SparkEnv:54 - Registering MapOutputTracker
+2018-04-07 19:04:43 INFO  SparkEnv:54 - Registering BlockManagerMaster
+2018-04-07 19:04:43 INFO  BlockManagerMasterEndpoint:54 - Using org.apache.spark.storage.DefaultTopologyMapper for getting topology information
+2018-04-07 19:04:43 INFO  BlockManagerMasterEndpoint:54 - BlockManagerMasterEndpoint up
+2018-04-07 19:04:43 INFO  DiskBlockManager:54 - Created local directory at /private/var/folders/_b/jy0l3rkx14j7rn4098kf2rpd9f7r2c/T/blockmgr-78b1aa6e-d73d-4cfe-bc78-f80939c40dad
+2018-04-07 19:04:43 INFO  MemoryStore:54 - MemoryStore started with capacity 366.3 MB
+2018-04-07 19:04:43 INFO  SparkEnv:54 - Registering OutputCommitCoordinator
+2018-04-07 19:04:43 INFO  log:192 - Logging initialized @1974ms
+2018-04-07 19:04:43 INFO  Server:346 - jetty-9.3.z-SNAPSHOT
+2018-04-07 19:04:43 INFO  Server:414 - Started @2035ms
+2018-04-07 19:04:43 WARN  Utils:66 - Service 'SparkUI' could not bind on port 4040. Attempting port 4041.
+2018-04-07 19:04:43 INFO  AbstractConnector:278 - Started ServerConnector@7abcf4f0{HTTP/1.1,[http/1.1]}{0.0.0.0:4041}
+2018-04-07 19:04:43 INFO  Utils:54 - Successfully started service 'SparkUI' on port 4041.
+2018-04-07 19:04:43 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@5c6d5579{/jobs,null,AVAILABLE,@Spark}
+2018-04-07 19:04:43 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@2f2b8ecd{/jobs/json,null,AVAILABLE,@Spark}
+2018-04-07 19:04:43 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@25334e19{/jobs/job,null,AVAILABLE,@Spark}
+2018-04-07 19:04:43 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@7f7686dc{/jobs/job/json,null,AVAILABLE,@Spark}
+2018-04-07 19:04:43 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@cd82219{/stages,null,AVAILABLE,@Spark}
+2018-04-07 19:04:43 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@33a4e61d{/stages/json,null,AVAILABLE,@Spark}
+2018-04-07 19:04:43 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@2d33d78e{/stages/stage,null,AVAILABLE,@Spark}
+2018-04-07 19:04:43 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@3fbd45d2{/stages/stage/json,null,AVAILABLE,@Spark}
+2018-04-07 19:04:43 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@c016a0c{/stages/pool,null,AVAILABLE,@Spark}
+2018-04-07 19:04:43 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@2d3c036a{/stages/pool/json,null,AVAILABLE,@Spark}
+2018-04-07 19:04:43 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@68110481{/storage,null,AVAILABLE,@Spark}
+2018-04-07 19:04:43 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@3d575f84{/storage/json,null,AVAILABLE,@Spark}
+2018-04-07 19:04:43 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@3a010328{/storage/rdd,null,AVAILABLE,@Spark}
+2018-04-07 19:04:43 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@77eb7051{/storage/rdd/json,null,AVAILABLE,@Spark}
+2018-04-07 19:04:43 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@17be5721{/environment,null,AVAILABLE,@Spark}
+2018-04-07 19:04:43 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@1092912d{/environment/json,null,AVAILABLE,@Spark}
+2018-04-07 19:04:43 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@22b8c854{/executors,null,AVAILABLE,@Spark}
+2018-04-07 19:04:43 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@e7d5daa{/executors/json,null,AVAILABLE,@Spark}
+2018-04-07 19:04:43 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@6b1f141b{/executors/threadDump,null,AVAILABLE,@Spark}
+2018-04-07 19:04:43 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@6f80ebac{/executors/threadDump/json,null,AVAILABLE,@Spark}
+2018-04-07 19:04:43 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@b9e7460{/static,null,AVAILABLE,@Spark}
+2018-04-07 19:04:43 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@2fb5ba9a{/,null,AVAILABLE,@Spark}
+2018-04-07 19:04:43 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@cca5641{/api,null,AVAILABLE,@Spark}
+2018-04-07 19:04:43 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@36d9b7d2{/jobs/job/kill,null,AVAILABLE,@Spark}
+2018-04-07 19:04:43 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@4df3a3e4{/stages/stage/kill,null,AVAILABLE,@Spark}
+2018-04-07 19:04:43 INFO  SparkUI:54 - Bound SparkUI to 0.0.0.0, and started at http://usmac2752dshau.local:4041
+2018-04-07 19:04:43 INFO  SparkContext:54 - Added file file:/Users/david.shaub/PBDP/hw9/p3_hll.py at file:/Users/david.shaub/PBDP/hw9/p3_hll.py with timestamp 1523149483990
+2018-04-07 19:04:43 INFO  Utils:54 - Copying /Users/david.shaub/PBDP/hw9/p3_hll.py to /private/var/folders/_b/jy0l3rkx14j7rn4098kf2rpd9f7r2c/T/spark-a24f2553-bd5f-400f-88cb-2d7f7b153549/userFiles-99e8be6e-6d9d-4565-b59e-dc0be663a3dc/p3_hll.py
+2018-04-07 19:04:44 INFO  Executor:54 - Starting executor ID driver on host localhost
+2018-04-07 19:04:44 INFO  Utils:54 - Successfully started service 'org.apache.spark.network.netty.NettyBlockTransferService' on port 51822.
+2018-04-07 19:04:44 INFO  NettyBlockTransferService:54 - Server created on usmac2752dshau.local:51822
+2018-04-07 19:04:44 INFO  BlockManager:54 - Using org.apache.spark.storage.RandomBlockReplicationPolicy for block replication policy
+2018-04-07 19:04:44 INFO  BlockManagerMaster:54 - Registering BlockManager BlockManagerId(driver, usmac2752dshau.local, 51822, None)
+2018-04-07 19:04:44 INFO  BlockManagerMasterEndpoint:54 - Registering block manager usmac2752dshau.local:51822 with 366.3 MB RAM, BlockManagerId(driver, usmac2752dshau.local, 51822, None)
+2018-04-07 19:04:44 INFO  BlockManagerMaster:54 - Registered BlockManager BlockManagerId(driver, usmac2752dshau.local, 51822, None)
+2018-04-07 19:04:44 INFO  BlockManager:54 - Initialized BlockManager: BlockManagerId(driver, usmac2752dshau.local, 51822, None)
+2018-04-07 19:04:44 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@6401acd8{/metrics/json,null,AVAILABLE,@Spark}
+Apprxoimate unique users in window
+```
+
+The job results appear in `hll_results`:
+```
+$ cat hll_results 
+0
+40
+40
+40
+40
+40
+40
+40
+40
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+```
+
+The job completed using 9 stages.
+
+![HyperLogLog with relativeSD=0.01](hll_0.01.png)
+
+Now we update `relativeSD=0.8`. This means we are likely to get an incorrect result, but the data structure necessariy for HyperLogLog is now smaller. We launch the job:
+```
+$ spark-submit p3_hll.py 
+2018-04-07 19:12:16 WARN  NativeCodeLoader:62 - Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+2018-04-07 19:12:16 INFO  SparkContext:54 - Running Spark version 2.3.0
+2018-04-07 19:12:16 INFO  SparkContext:54 - Submitted application: p3_hll
+2018-04-07 19:12:16 INFO  SecurityManager:54 - Changing view acls to: david.shaub
+2018-04-07 19:12:16 INFO  SecurityManager:54 - Changing modify acls to: david.shaub
+2018-04-07 19:12:16 INFO  SecurityManager:54 - Changing view acls groups to: 
+2018-04-07 19:12:16 INFO  SecurityManager:54 - Changing modify acls groups to: 
+2018-04-07 19:12:16 INFO  SecurityManager:54 - SecurityManager: authentication disabled; ui acls disabled; users  with view permissions: Set(david.shaub); groups with view permissions: Set(); users  with modify permissions: Set(david.shaub); groups with modify permissions: Set()
+2018-04-07 19:12:17 INFO  Utils:54 - Successfully started service 'sparkDriver' on port 51869.
+2018-04-07 19:12:17 INFO  SparkEnv:54 - Registering MapOutputTracker
+2018-04-07 19:12:17 INFO  SparkEnv:54 - Registering BlockManagerMaster
+2018-04-07 19:12:17 INFO  BlockManagerMasterEndpoint:54 - Using org.apache.spark.storage.DefaultTopologyMapper for getting topology information
+2018-04-07 19:12:17 INFO  BlockManagerMasterEndpoint:54 - BlockManagerMasterEndpoint up
+2018-04-07 19:12:17 INFO  DiskBlockManager:54 - Created local directory at /private/var/folders/_b/jy0l3rkx14j7rn4098kf2rpd9f7r2c/T/blockmgr-97a1fd6f-a88c-42e0-9233-538912cd3c54
+2018-04-07 19:12:17 INFO  MemoryStore:54 - MemoryStore started with capacity 366.3 MB
+2018-04-07 19:12:17 INFO  SparkEnv:54 - Registering OutputCommitCoordinator
+2018-04-07 19:12:17 INFO  log:192 - Logging initialized @2141ms
+2018-04-07 19:12:17 INFO  Server:346 - jetty-9.3.z-SNAPSHOT
+2018-04-07 19:12:17 INFO  Server:414 - Started @2204ms
+2018-04-07 19:12:17 WARN  Utils:66 - Service 'SparkUI' could not bind on port 4040. Attempting port 4041.
+2018-04-07 19:12:17 INFO  AbstractConnector:278 - Started ServerConnector@3a5443db{HTTP/1.1,[http/1.1]}{0.0.0.0:4041}
+2018-04-07 19:12:17 INFO  Utils:54 - Successfully started service 'SparkUI' on port 4041.
+2018-04-07 19:12:17 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@5b328308{/jobs,null,AVAILABLE,@Spark}
+2018-04-07 19:12:17 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@1bb98e0c{/jobs/json,null,AVAILABLE,@Spark}
+2018-04-07 19:12:17 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@16ce80c6{/jobs/job,null,AVAILABLE,@Spark}
+2018-04-07 19:12:17 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@13aa904e{/jobs/job/json,null,AVAILABLE,@Spark}
+2018-04-07 19:12:17 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@4434a5d9{/stages,null,AVAILABLE,@Spark}
+2018-04-07 19:12:17 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@261ec529{/stages/json,null,AVAILABLE,@Spark}
+2018-04-07 19:12:17 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@3435cfbf{/stages/stage,null,AVAILABLE,@Spark}
+2018-04-07 19:12:17 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@4246c0a8{/stages/stage/json,null,AVAILABLE,@Spark}
+2018-04-07 19:12:17 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@5894b768{/stages/pool,null,AVAILABLE,@Spark}
+2018-04-07 19:12:17 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@7b61c354{/stages/pool/json,null,AVAILABLE,@Spark}
+2018-04-07 19:12:17 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@621b97c8{/storage,null,AVAILABLE,@Spark}
+2018-04-07 19:12:17 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@162c58a3{/storage/json,null,AVAILABLE,@Spark}
+2018-04-07 19:12:17 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@6b7e82f9{/storage/rdd,null,AVAILABLE,@Spark}
+2018-04-07 19:12:17 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@1ef097a1{/storage/rdd/json,null,AVAILABLE,@Spark}
+2018-04-07 19:12:17 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@20ebf660{/environment,null,AVAILABLE,@Spark}
+2018-04-07 19:12:17 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@54765b9e{/environment/json,null,AVAILABLE,@Spark}
+2018-04-07 19:12:17 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@4b8072a3{/executors,null,AVAILABLE,@Spark}
+2018-04-07 19:12:17 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@51d7b9ed{/executors/json,null,AVAILABLE,@Spark}
+2018-04-07 19:12:17 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@2ef00d41{/executors/threadDump,null,AVAILABLE,@Spark}
+2018-04-07 19:12:17 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@48bc19aa{/executors/threadDump/json,null,AVAILABLE,@Spark}
+2018-04-07 19:12:17 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@616f74{/static,null,AVAILABLE,@Spark}
+2018-04-07 19:12:17 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@d4a1ceb{/,null,AVAILABLE,@Spark}
+2018-04-07 19:12:17 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@2d466f24{/api,null,AVAILABLE,@Spark}
+2018-04-07 19:12:17 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@49ea0ce3{/jobs/job/kill,null,AVAILABLE,@Spark}
+2018-04-07 19:12:17 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@7ed83761{/stages/stage/kill,null,AVAILABLE,@Spark}
+2018-04-07 19:12:17 INFO  SparkUI:54 - Bound SparkUI to 0.0.0.0, and started at http://usmac2752dshau.local:4041
+2018-04-07 19:12:17 INFO  SparkContext:54 - Added file file:/Users/david.shaub/PBDP/hw9/p3_hll.py at file:/Users/david.shaub/PBDP/hw9/p3_hll.py with timestamp 1523149937562
+2018-04-07 19:12:17 INFO  Utils:54 - Copying /Users/david.shaub/PBDP/hw9/p3_hll.py to /private/var/folders/_b/jy0l3rkx14j7rn4098kf2rpd9f7r2c/T/spark-c7d5c77d-5cc9-4d25-a814-17e43dffc11a/userFiles-44979136-7674-4e3d-8a09-45662c7cf4a7/p3_hll.py
+2018-04-07 19:12:17 INFO  Executor:54 - Starting executor ID driver on host localhost
+2018-04-07 19:12:17 INFO  Utils:54 - Successfully started service 'org.apache.spark.network.netty.NettyBlockTransferService' on port 51870.
+2018-04-07 19:12:17 INFO  NettyBlockTransferService:54 - Server created on usmac2752dshau.local:51870
+2018-04-07 19:12:17 INFO  BlockManager:54 - Using org.apache.spark.storage.RandomBlockReplicationPolicy for block replication policy
+2018-04-07 19:12:17 INFO  BlockManagerMaster:54 - Registering BlockManager BlockManagerId(driver, usmac2752dshau.local, 51870, None)
+2018-04-07 19:12:17 INFO  BlockManagerMasterEndpoint:54 - Registering block manager usmac2752dshau.local:51870 with 366.3 MB RAM, BlockManagerId(driver, usmac2752dshau.local, 51870, None)
+2018-04-07 19:12:17 INFO  BlockManagerMaster:54 - Registered BlockManager BlockManagerId(driver, usmac2752dshau.local, 51870, None)
+2018-04-07 19:12:17 INFO  BlockManager:54 - Initialized BlockManager: BlockManagerId(driver, usmac2752dshau.local, 51870, None)
+2018-04-07 19:12:17 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@1da5ac97{/metrics/json,null,AVAILABLE,@Spark}
+Apprxoimate unique users in window
+```
+
+Indeed the results arrive at an incorrect count:
+```
+$ cat hll_results 
+0
+31
+31
+31
+31
+31
+31
+31
+31
+31
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+```
+
+The job completed using 9 stages.
+
+![HyperLogLog with relativeSD=0.8](hll_0.8.png)
+
+The Spark jobs dashboard reported that regardless of the tunable accuracy measure we supplied to the HyperLogLog algorithm, the job consisted in the same number of stages. To further look for any differences, we examine the job performance statistics in the streaming tab.
+
+![Batch runtimes with relativeSD=0.01](hll_0.01_load.png)
+
+![Batch runtimes with relativeSD=0.8](hll_0.8_load.png)
+
+By looking at the job processing time when load occured on spark, we see the windows took about 1.5 seconds to complete when data was entering the stream. This appears also the same between the two settings--although we would expect the more compact data structure with the the inaccurate approximation to be faster. It it possible the data size is small enough here that there is not an appreciable performance difference between the two, and random variance makes it difficult to observe difference between the jobs. Alternatively, the somewhat hacky way we are writing the results to a file instead of outputting to the console might be interfering with Spark's reporting in some way (since it doesn't really know about the output of the job).
 
 ## Problem 5
+
+The `p5.py` job that removes duplicates:
+```
+from pyspark import SparkContext, SparkConf
+from pyspark.streaming import StreamingContext
+import os
+
+conf = SparkConf().setAppName('p5').setMaster("local[*]")
+sc = SparkContext(conf=conf)
+sc.setLogLevel('ERROR')
+ssc = StreamingContext(sc, 1)
+
+
+def extract_user(line):
+    """
+    Parse a line with UUID, timestqmap, URL, and user. Return the user.
+    :param line: A string containing a record
+    """
+    (uuid, timestamp, url, user) = line.strip().split(' ')
+    return (url, 1)
+
+print 'Count of each URL in window'
+lines = ssc.textFileStream('data_input')
+distinct_records = lines.transform(lambda rdd: rdd.distinct())
+url_count = distinct_records.map(extract_user).window(60, 1).reduceByKey(lambda x, y: x + y)
+url_count.pprint(40)
+
+ssc.start()
+ssc.awaitTermination()
+ssc.stop()
+```
 
 We launch the job:
 ```
