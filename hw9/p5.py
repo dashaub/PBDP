@@ -14,12 +14,13 @@ def extract_user(line):
     :param line: A string containing a record
     """
     (uuid, timestamp, url, user) = line.strip().split(' ')
-    return url
+    return (url, 1)
 
 print 'Count of each URL in window'
 lines = ssc.textFileStream('data_input')
-url_count = lines.map(extract_user).window(5, 5).transform(lambda rdd: rdd.distinct()).reduceByKey(lambda x, y: x + y)
-url_count.pprint()
+distinct_records = lines.transform(lambda rdd: rdd.distinct())
+url_count = distinct_records.map(extract_user).window(60, 1).reduceByKey(lambda x, y: x + y)
+url_count.pprint(40)
 
 ssc.start()
 ssc.awaitTermination()

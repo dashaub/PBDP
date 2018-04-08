@@ -855,7 +855,6 @@ $ spark-submit p3_aggregation.py
 2018-04-05 15:39:44 INFO  SecurityManager:54 - Changing view acls groups to: 
 2018-04-05 15:39:44 INFO  SecurityManager:54 - Changing modify acls groups to: 
 2018-04-05 15:39:44 INFO  SecurityManager:54 - SecurityManager: authentication disabled; ui acls disabled; users  with view permissions: Set(david.shaub); groups with view permissions: Set(); users  with modify permissions: Set(david.shaub); groups with modify permissions: Set()
-
 ```
 
 When the job runs, we see that all logs were processed during two 30-second windows. In each window, 40 distinct users were encountered. We see that no duplicate users appear _within_ a window, but duplicate users do appear _across_ windows--as we would expect.
@@ -994,3 +993,559 @@ Time: 2018-04-05 15:42:15
 ```
 
 ** HyperLogLog**
+
+
+## Problem 5
+
+We launch the job:
+```
+$ spark-submit p5.py 
+2018-04-07 15:06:09 WARN  NativeCodeLoader:62 - Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+2018-04-07 15:06:09 INFO  SparkContext:54 - Running Spark version 2.3.0
+2018-04-07 15:06:09 INFO  SparkContext:54 - Submitted application: p5
+2018-04-07 15:06:09 INFO  SecurityManager:54 - Changing view acls to: david.shaub
+2018-04-07 15:06:09 INFO  SecurityManager:54 - Changing modify acls to: david.shaub
+2018-04-07 15:06:09 INFO  SecurityManager:54 - Changing view acls groups to: 
+2018-04-07 15:06:09 INFO  SecurityManager:54 - Changing modify acls groups to: 
+2018-04-07 15:06:09 INFO  SecurityManager:54 - SecurityManager: authentication disabled; ui acls disabled; users  with view permissions: Set(david.shaub); groups with view permissions: Set(); users  with modify permissions: Set(david.shaub); groups with modify permissions: Set()
+2018-04-07 15:06:10 INFO  Utils:54 - Successfully started service 'sparkDriver' on port 64925.
+2018-04-07 15:06:10 INFO  SparkEnv:54 - Registering MapOutputTracker
+```
+
+And the job output:
+```
+2018-04-07 15:06:10 INFO  Executor:54 - Starting executor ID driver on host localhost
+2018-04-07 15:06:10 INFO  Utils:54 - Successfully started service 'org.apache.spark.network.netty.NettyBlockTransferService' on port 64926.
+2018-04-07 15:06:10 INFO  NettyBlockTransferService:54 - Server created on usmac2752dshau.local:64926
+2018-04-07 15:06:10 INFO  BlockManager:54 - Using org.apache.spark.storage.RandomBlockReplicationPolicy for block replication policy
+2018-04-07 15:06:10 INFO  BlockManagerMaster:54 - Registering BlockManager BlockManagerId(driver, usmac2752dshau.local, 64926, None)
+2018-04-07 15:06:10 INFO  BlockManagerMasterEndpoint:54 - Registering block manager usmac2752dshau.local:64926 with 366.3 MB RAM, BlockManagerId(driver, usmac2752dshau.local, 64926, None)
+2018-04-07 15:06:10 INFO  BlockManagerMaster:54 - Registered BlockManager BlockManagerId(driver, usmac2752dshau.local, 64926, None)
+2018-04-07 15:06:10 INFO  BlockManager:54 - Initialized BlockManager: BlockManagerId(driver, usmac2752dshau.local, 64926, None)
+2018-04-07 15:06:10 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@7c876e0b{/metrics/json,null,AVAILABLE,@Spark}
+Count of each URL in window
+-------------------------------------------
+Time: 2018-04-07 15:06:12
+-------------------------------------------
+
+-------------------------------------------
+Time: 2018-04-07 15:06:13
+-------------------------------------------
+
+-------------------------------------------
+Time: 2018-04-07 15:06:14
+-------------------------------------------
+
+-------------------------------------------
+Time: 2018-04-07 15:06:15
+-------------------------------------------
+(u'http://example.com/?url=6', 20000)
+(u'http://example.com/?url=7', 20000)
+(u'http://example.com/?url=4', 20000)
+(u'http://example.com/?url=5', 20000)
+(u'http://example.com/?url=2', 20000)
+(u'http://example.com/?url=3', 20000)
+(u'http://example.com/?url=8', 20000)
+(u'http://example.com/?url=0', 20000)
+(u'http://example.com/?url=9', 20000)
+(u'http://example.com/?url=1', 20000)
+
+-------------------------------------------
+Time: 2018-04-07 15:06:16
+-------------------------------------------
+(u'http://example.com/?url=6', 36000)
+(u'http://example.com/?url=7', 36000)
+(u'http://example.com/?url=4', 36000)
+(u'http://example.com/?url=5', 36000)
+(u'http://example.com/?url=2', 36000)
+(u'http://example.com/?url=3', 36000)
+(u'http://example.com/?url=8', 36000)
+(u'http://example.com/?url=0', 36000)
+(u'http://example.com/?url=9', 36000)
+(u'http://example.com/?url=1', 36000)
+
+-------------------------------------------
+Time: 2018-04-07 15:06:17
+-------------------------------------------
+(u'http://example.com/?url=6', 60000)
+(u'http://example.com/?url=7', 60000)
+(u'http://example.com/?url=4', 60000)
+(u'http://example.com/?url=5', 60000)
+(u'http://example.com/?url=2', 60000)
+(u'http://example.com/?url=3', 60000)
+(u'http://example.com/?url=8', 60000)
+(u'http://example.com/?url=0', 60000)
+(u'http://example.com/?url=9', 60000)
+(u'http://example.com/?url=1', 60000)
+
+-------------------------------------------
+Time: 2018-04-07 15:06:18
+-------------------------------------------
+(u'http://example.com/?url=6', 64000)
+(u'http://example.com/?url=7', 64000)
+(u'http://example.com/?url=4', 64000)
+(u'http://example.com/?url=5', 64000)
+(u'http://example.com/?url=2', 64000)
+(u'http://example.com/?url=3', 64000)
+(u'http://example.com/?url=8', 64000)
+(u'http://example.com/?url=0', 64000)
+(u'http://example.com/?url=9', 64000)
+(u'http://example.com/?url=1', 64000)
+
+-------------------------------------------
+Time: 2018-04-07 15:06:19
+-------------------------------------------
+(u'http://example.com/?url=6', 84000)
+(u'http://example.com/?url=7', 84000)
+(u'http://example.com/?url=4', 84000)
+(u'http://example.com/?url=5', 84000)
+(u'http://example.com/?url=2', 84000)
+(u'http://example.com/?url=3', 84000)
+(u'http://example.com/?url=8', 84000)
+(u'http://example.com/?url=0', 84000)
+(u'http://example.com/?url=9', 84000)
+(u'http://example.com/?url=1', 84000)
+```
+
+As another way to verify that the job is removing duplicates, we'll launch a script `generate_duplicates.sh` that produces one event every 10 seconds, but every event will be a duplicate. Spark will pick up the files and remove duplicates:
+```
+#!/bin/bash
+
+rm data_input/*
+num=0001
+while true; do
+    echo 'd8c6aff2-3cbb-4ecc-a909-700605db8285 2018-03-24T15:44:59.068Z http://example.com/?url=0 User_0' > data_input/dup_${num}.txt
+    sleep 10
+    num+=1
+done
+
+```
+
+The results from `generate_duplicates.sh` show that only one unique URL occuring in the last 60 seconds for the window that is calculated each second:
+```
+2018-04-07 15:29:46 INFO  Executor:54 - Starting executor ID driver on host localhost
+2018-04-07 15:29:46 INFO  Utils:54 - Successfully started service 'org.apache.spark.network.netty.NettyBlockTransferService' on port 65241.
+2018-04-07 15:29:46 INFO  NettyBlockTransferService:54 - Server created on usmac2752dshau.local:65241
+2018-04-07 15:29:46 INFO  BlockManager:54 - Using org.apache.spark.storage.RandomBlockReplicationPolicy for block replication policy
+2018-04-07 15:29:46 INFO  BlockManagerMaster:54 - Registering BlockManager BlockManagerId(driver, usmac2752dshau.local, 65241, None)
+2018-04-07 15:29:46 INFO  BlockManagerMasterEndpoint:54 - Registering block manager usmac2752dshau.local:65241 with 366.3 MB RAM, BlockManagerId(driver, usmac2752dshau.local, 65241, None)
+2018-04-07 15:29:46 INFO  BlockManagerMaster:54 - Registered BlockManager BlockManagerId(driver, usmac2752dshau.local, 65241, None)
+2018-04-07 15:29:46 INFO  BlockManager:54 - Initialized BlockManager: BlockManagerId(driver, usmac2752dshau.local, 65241, None)
+2018-04-07 15:29:46 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@2eec19c8{/metrics/json,null,AVAILABLE,@Spark}
+Count of each URL in window
+-------------------------------------------
+Time: 2018-04-07 15:29:48
+-------------------------------------------
+
+-------------------------------------------
+Time: 2018-04-07 15:29:49
+-------------------------------------------
+
+-------------------------------------------
+Time: 2018-04-07 15:29:50
+-------------------------------------------
+
+-------------------------------------------
+Time: 2018-04-07 15:29:51
+-------------------------------------------
+
+-------------------------------------------
+Time: 2018-04-07 15:29:52
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:29:53
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:29:54
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:29:55
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:29:56
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:29:57
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+```
+
+Finally, one more test will prove that the results calculated each 60 second window are correct. We'll modify the `generate_duplicates.sh` with `sleep 65` so that a log is generated less than every minute. This means that there should be five windows from Spark output where there are no URLs to show. We see that the the five seconds after `15:41:23` have no results since no logs occured in the last 60 seconds, but after 5 seconds later a new log enters the dstream.
+```
+2018-04-07 15:40:18 INFO  Executor:54 - Starting executor ID driver on host localhost
+2018-04-07 15:40:18 INFO  Utils:54 - Successfully started service 'org.apache.spark.network.netty.NettyBlockTransferService' on port 49175.
+2018-04-07 15:40:18 INFO  NettyBlockTransferService:54 - Server created on usmac2752dshau.local:49175
+2018-04-07 15:40:18 INFO  BlockManager:54 - Using org.apache.spark.storage.RandomBlockReplicationPolicy for block replication policy
+2018-04-07 15:40:18 INFO  BlockManagerMaster:54 - Registering BlockManager BlockManagerId(driver, usmac2752dshau.local, 49175, None)
+2018-04-07 15:40:18 INFO  BlockManagerMasterEndpoint:54 - Registering block manager usmac2752dshau.local:49175 with 366.3 MB RAM, BlockManagerId(driver, usmac2752dshau.local, 49175, None)
+2018-04-07 15:40:18 INFO  BlockManagerMaster:54 - Registered BlockManager BlockManagerId(driver, usmac2752dshau.local, 49175, None)
+2018-04-07 15:40:18 INFO  BlockManager:54 - Initialized BlockManager: BlockManagerId(driver, usmac2752dshau.local, 49175, None)
+2018-04-07 15:40:19 INFO  ContextHandler:781 - Started o.s.j.s.ServletContextHandler@59cdcb27{/metrics/json,null,AVAILABLE,@Spark}
+Count of each URL in window
+-------------------------------------------
+Time: 2018-04-07 15:40:20
+-------------------------------------------
+
+-------------------------------------------
+Time: 2018-04-07 15:40:21
+-------------------------------------------
+
+-------------------------------------------
+Time: 2018-04-07 15:40:22
+-------------------------------------------
+
+-------------------------------------------
+Time: 2018-04-07 15:40:23
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:40:24
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:40:25
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:40:26
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:40:27
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:40:28
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:40:29
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:40:30
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:40:31
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:40:32
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:40:33
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:40:34
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:40:35
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:40:36
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:40:37
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:40:38
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:40:39
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:40:40
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:40:41
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:40:42
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:40:43
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:40:44
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:40:45
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:40:46
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:40:47
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:40:48
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:40:49
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:40:50
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:40:51
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:40:52
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:40:53
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:40:54
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:40:55
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:40:56
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:40:57
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:40:58
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:40:59
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:41:00
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:41:01
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:41:02
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:41:03
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:41:04
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:41:05
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:41:06
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:41:07
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:41:08
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:41:09
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:41:10
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:41:11
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:41:12
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:41:13
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:41:14
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:41:15
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:41:16
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:41:17
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:41:18
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:41:19
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:41:20
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:41:21
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:41:22
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:41:23
+-------------------------------------------
+
+-------------------------------------------
+Time: 2018-04-07 15:41:24
+-------------------------------------------
+
+-------------------------------------------
+Time: 2018-04-07 15:41:25
+-------------------------------------------
+
+-------------------------------------------
+Time: 2018-04-07 15:41:26
+-------------------------------------------
+
+-------------------------------------------
+Time: 2018-04-07 15:41:27
+-------------------------------------------
+
+-------------------------------------------
+Time: 2018-04-07 15:41:28
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:41:29
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:41:30
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:41:31
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+
+-------------------------------------------
+Time: 2018-04-07 15:41:32
+-------------------------------------------
+(u'http://example.com/?url=0', 1)
+```
