@@ -221,7 +221,7 @@ cqlsh:hw10> insert into hw10_p2 (uuid, record_time, hour, url, ua_country, ttfb)
 cqlsh:hw10> insert into hw10_p2 (uuid, record_time, hour, url, ua_country, ttfb) values ('spam_uuid', '2018-01-01T04:01:01', 4, 'msn.com', 'uk', 4);
 cqlsh:hw10> insert into hw10_p2 (uuid, record_time, hour, url, ua_country, ttfb) values ('eggs_uuid', '2018-01-01T05:01:01', 5, 'msn.com', 'us', 1000);
 ```
-The all records appear in the table:
+All records appear in the table:
 ```
 cqlsh:hw10> select * from hw10_p2;
 
@@ -286,6 +286,192 @@ cqlsh:hw10> select url, ua_country, avg(ttfb) as avg_ttfb from hw10_p2 where rec
  url     | ua_country | avg_ttfb
 ---------+------------+----------
  msn.com |         uk |        4
+
+(1 rows)
+```
+
+## Problem 3
+
+Our `cassandra_generator.py` program to create events and insert into Cassandra.
+```
+"""
+Generate random events and insert them into a Cassandra table
+"""
+
+import hashlib
+import random
+
+from cassandra.cluster import Cluster
+
+# Initialize the connection and session with Cassandra on localhost
+cluster = Cluster(['127.0.0.1'])
+session = cluster.connect('hw10')
+
+# Possible URLs, dates, and countries to sample from.
+# Include some duplicates so these are included more frequently for a non-uniform distribution
+urls = ['https://en.wikipedia.org/wiki/Apache_Cassandra',
+        'https://en.wikipedia.org/wiki/Apache_Cassandra',
+        'https://en.wikipedia.org/wiki/Richard_Stallman',
+        'https://stallman.org/biographies.html#serious',
+        'https://www.gnu.org/software/software.html',
+        'https://www.gnu.org/gnu/gnu.html']
+# Generate seconds and minutes uniformly in [0, 60)
+seconds = ['0' + str(i) for i in range(10)] + [str(i) for i in range(10, 60)]
+minutes = ['0' + str(i) for i in range(10)] + [str(i) for i in range(10, 60)]
+# Sample the hours [10, 24) twice as frequently
+hours = ['0' + str(i) for i in range(10)] + [str(i) for i in range(10, 24) for _ in range(2)]
+# Generate more events on certain days
+days = ['01', '01', '02', '03', '03', '03', '03', '04', '05']
+months = ['01']
+years = ['2018']
+# Generate more events in certain countries
+countries = ['us', 'us', 'us', 'us', 'ru', 'de', 'jp', 'ca', 'in', 'uk', 'uk']
+ttfbs = [i for i in range(100)]
+
+def generate_event():
+    """
+    Generate a single random event to insert into Cassandra
+    """
+    url = random.choice(urls)
+    ua_country = random.choice(countries)
+    ttfb = random.choice(ttfbs)
+
+    # Build the timestamp
+    year = random.choice(years)
+    month = random.choice(months)
+    day = random.choice(days)
+    hour = random.choice(hours)
+    minute = random.choice(minutes)
+    second = random.choice(seconds)
+    record_time = '{}-{}-{}T{}:{}:{}'.format(year, month, day, hour, minute, second)
+
+    # Combine the fieds and generate a UUID hash
+    line = record_time + hour + url + ua_country + str(ttfb)
+    uuid = hashlib.md5(line).hexdigest()
+    return([uuid, record_time, int(hour), url, ua_country, ttfb])
+
+
+def insert_cassandra(event):
+    """
+    Insert an event into the hw10.hw10_p2 table
+    :param event: A single event ot insert
+    """
+    session.execute(
+    """
+    INSERT INTO hw10_p2 (uuid, record_time, hour, url, ua_country, ttfb)
+    VALUES (%s, %s, %s, %s, %s, %s)
+    """, event)
+
+
+# Insert 1000 events into Cassandra
+for count in range(1, 1001):
+    event = generate_event()
+    insert_cassandra(event)
+    if count % 100 == 0:
+        print('Inserted {} total events'.format(count))
+
+```
+
+Before running the program to generate events, we drop the table and create it again:
+```
+cqlsh:hw10> drop table hw10_p2;
+cqlsh:hw10> create table hw10_p2 (uuid text, record_time timestamp, hour tinyint, url text, ua_country text, ttfb float, primary key((url, ua_country, hour), record_time));
+```
+
+We run our program to insert 1000 events into our table:
+```
+root@b1218b080ff8:~# python cassandra_generator.py 
+Inserted 100 total events
+Inserted 200 total events
+Inserted 300 total events
+Inserted 400 total events
+Inserted 500 total events
+Inserted 600 total events
+Inserted 700 total events
+Inserted 800 total events
+Inserted 900 total events
+Inserted 1000 total events
+```
+
+We see that 1000 events were inserted:
+```
+cqlsh:hw10> select * from hw10_p2 limit 10;
+
+ url                                            | ua_country | hour | record_time                     | ttfb | uuid
+------------------------------------------------+------------+------+---------------------------------+------+----------------------------------
+  https://stallman.org/biographies.html#serious |         ca |    7 | 2018-01-03 07:44:14.000000+0000 |   69 | d59f46d99b1531e0d124a4951f94b238
+ https://en.wikipedia.org/wiki/Richard_Stallman |         in |   13 | 2018-01-01 13:30:00.000000+0000 |    4 | ee9b613ed9702928bff28a920896cd15
+ https://en.wikipedia.org/wiki/Richard_Stallman |         in |   12 | 2018-01-02 12:44:29.000000+0000 |   37 | 2d8e7f62a0e798942f87470a3afade1a
+ https://en.wikipedia.org/wiki/Richard_Stallman |         in |   12 | 2018-01-04 12:12:14.000000+0000 |   57 | 3646b1f78e8b4b35163c82da79b09acb
+ https://en.wikipedia.org/wiki/Richard_Stallman |         in |   12 | 2018-01-04 12:34:16.000000+0000 |   19 | a1304ae021034f877b67f89fdc32a00d
+ https://en.wikipedia.org/wiki/Apache_Cassandra |         uk |   20 | 2018-01-01 20:01:42.000000+0000 |   38 | 0d92f6addde49897087199291f539d1b
+ https://en.wikipedia.org/wiki/Apache_Cassandra |         uk |   20 | 2018-01-02 20:38:26.000000+0000 |   42 | 210e027f6eb644f20d46d31892a52080
+ https://en.wikipedia.org/wiki/Apache_Cassandra |         uk |   20 | 2018-01-03 20:39:25.000000+0000 |    5 | ff087408f8e8bec8602f4e03981300c7
+ https://en.wikipedia.org/wiki/Apache_Cassandra |         uk |   20 | 2018-01-04 20:27:32.000000+0000 |   90 | 05db480e52a2390ab79593ab381f6e38
+ https://en.wikipedia.org/wiki/Apache_Cassandra |         ru |   12 | 2018-01-01 12:21:05.000000+0000 |   15 | 4c07d4c824c6f1cf26dcb40e5cb244a7
+
+(10 rows)
+cqlsh:hw10> select count(*) from hw10_p2;
+
+ count
+-------
+  1000
+
+(1 rows)
+
+Warnings :
+Aggregation query used without partition key
+```
+
+**Query 1**
+We run an initial query to see the distribution of data before running our actual query:
+```
+cqlsh:hw10> select * from hw10_p2 where ua_country='us' and url='https://en.wikipedia.org/wiki/Apache_Cassandra' and hour=10;
+
+ url                                            | ua_country | hour | record_time                     | ttfb | uuid
+------------------------------------------------+------------+------+---------------------------------+------+----------------------------------
+ https://en.wikipedia.org/wiki/Apache_Cassandra |         us |   10 | 2018-01-01 10:19:23.000000+0000 |   74 | 382529d0d4f810401000d9990eb1fd6f
+ https://en.wikipedia.org/wiki/Apache_Cassandra |         us |   10 | 2018-01-03 10:20:10.000000+0000 |    8 | c6138369218ef815a23fdaa3f6e17deb
+ https://en.wikipedia.org/wiki/Apache_Cassandra |         us |   10 | 2018-01-03 10:20:19.000000+0000 |   24 | 3878ef4b128f87b5db307ac4821b88d5
+ https://en.wikipedia.org/wiki/Apache_Cassandra |         us |   10 | 2018-01-03 10:55:06.000000+0000 |   26 | fa622ac56e620b70ca452011b1b4f84c
+
+(4 rows)
+```
+
+Now that we see what the data in this range looks like, we run a few queries demonstrating the counts.
+```
+cqlsh:hw10> select url, ua_country, count(uuid) as num_records from hw10_p2 where record_time >= '2018-01-03T10:00:00' and record_time < '2018-01-03T10:30:00' and hour=10 and url='https://en.wikipedia.org/wiki/Apache_Cassandra' and ua_country='us' group by url, ua_country, hour;
+
+ url                                            | ua_country | num_records
+------------------------------------------------+------------+-------------
+ https://en.wikipedia.org/wiki/Apache_Cassandra |         us |           2
+
+(1 rows)
+cqlsh:hw10> select url, ua_country, count(uuid) as num_records from hw10_p2 where record_time >= '2018-01-03T10:00:00' and record_time < '2018-01-03T10:59:00' and hour=10 and url='https://en.wikipedia.org/wiki/Apache_Cassandra' and ua_country='us' group by url, ua_country, hour;
+
+ url                                            | ua_country | num_records
+------------------------------------------------+------------+-------------
+ https://en.wikipedia.org/wiki/Apache_Cassandra |         us |           3
+
+(1 rows)
+```
+
+**Query 2**
+Using the same time ranges/country/URL from above, we now calculate the average TTFB.
+```
+cqlsh:hw10> select url, ua_country, avg(ttfb) as avg_ttfb from hw10_p2 where record_time >= '2018-01-03T10:00:00' and record_time < '2018-01-03T10:30:00' and hour=10 and url='https://en.wikipedia.org/wiki/Apache_Cassandra' and ua_country='us' group by url, ua_country, hour;
+
+ url                                            | ua_country | avg_ttfb
+------------------------------------------------+------------+----------
+ https://en.wikipedia.org/wiki/Apache_Cassandra |         us |       16
+
+(1 rows)
+
+cqlsh:hw10> select url, ua_country, avg(ttfb) as avg_ttfb from hw10_p2 where record_time >= '2018-01-03T10:00:00' and record_time < '2018-01-03T10:59:00' and hour=10 and url='https://en.wikipedia.org/wiki/Apache_Cassandra' and ua_country='us' group by url, ua_country, hour;
+
+ url                                            | ua_country | avg_ttfb
+------------------------------------------------+------------+----------
+ https://en.wikipedia.org/wiki/Apache_Cassandra |         us | 19.33333
 
 (1 rows)
 ```

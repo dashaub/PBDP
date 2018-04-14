@@ -1,5 +1,15 @@
+"""
+Generate random events and insert them into a Cassandra table
+"""
+
 import hashlib
 import random
+
+from cassandra.cluster import Cluster
+
+# Initialize the connection and session with Cassandra on localhost
+cluster = Cluster(['127.0.0.1'])
+session = cluster.connect('hw10')
 
 # Possible URLs, dates, and countries to sample from.
 # Include some duplicates so these are included more frequently for a non-uniform distribution
@@ -27,7 +37,7 @@ def generate_event():
     Generate a single random event to insert into Cassandra
     """
     url = random.choice(urls)
-    country = random.choice(countries)
+    ua_country = random.choice(countries)
     ttfb = random.choice(ttfbs)
 
     # Build the timestamp
@@ -37,19 +47,29 @@ def generate_event():
     hour = random.choice(hours)
     minute = random.choice(minutes)
     second = random.choice(seconds)
-    timestamp = '{}-{}-{}T{}:{}:{}'.format(year, month, day, hour, minute, second)
+    record_time = '{}-{}-{}T{}:{}:{}'.format(year, month, day, hour, minute, second)
 
-    line = timestamp + url + country + str(ttfb)
+    # Combine the fieds and generate a UUID hash
+    line = record_time + hour + url + ua_country + str(ttfb)
     uuid = hashlib.md5(line).hexdigest()
-    return([uuid, timestamp, url, country, ttfb])
+    return([uuid, record_time, int(hour), url, ua_country, ttfb])
+
 
 def insert_cassandra(event):
     """
     Insert an event into the hw10.hw10_p2 table
     :param event: A single event ot insert
     """
+    session.execute(
+    """
+    INSERT INTO hw10_p2 (uuid, record_time, hour, url, ua_country, ttfb)
+    VALUES (%s, %s, %s, %s, %s, %s)
+    """, event)
+
 
 # Insert 1000 events into Cassandra
-for _ in range(1000)
+for count in range(1, 1001):
     event = generate_event()
     insert_cassandra(event)
+    if count % 100 == 0:
+        print('Inserted {} total events'.format(count))
