@@ -475,3 +475,219 @@ cqlsh:hw10> select url, ua_country, avg(ttfb) as avg_ttfb from hw10_p2 where rec
 
 (1 rows)
 ```
+
+
+## Problem 4
+
+We make two minor modifications to our `cassandra_generator.py` program:
+
+1. We modify our session to use the consistency level `ConsistencyLevel.QUORUM` as a default. Since our cluster has a single node, this setting will require an ack from a single node, but if we were to grow the cluster this setting would be more meaningful.
+2. Our insert queries will be performed using the asynchronous `execute_async()`. This doesn't block the flow of execuation waiting for a response, but we will collected the returned futures in a list and then check that these are resolved before declaring the inserts successful and exiting the program.
+
+Once again we drop the table and create it before running our program to insert the data:
+```
+cqlsh:hw10> drop table hw10_p2;
+cqlsh:hw10> create table hw10_p2 (uuid text, record_time timestamp, hour tinyint, url text, ua_country text, ttfb float, primary key((url, ua_country, hour), record_time));
+```
+
+The `cassandra_generator_async.py` program:
+```
+"""
+Generate random events and insert them into a Cassandra table.
+This version writes the events asynchronously.
+"""
+
+import hashlib
+import random
+
+from cassandra import ConsistencyLevel
+from cassandra.cluster import Cluster
+
+# Initialize the connection and session with Cassandra on localhost
+cluster = Cluster(['127.0.0.1'])
+session = cluster.connect('hw10')
+session.default_consistency_level = ConsistencyLevel.QUORUM
+
+# Possible URLs, dates, and countries to sample from.
+# Include some duplicates so these are included more frequently for a non-uniform distribution
+urls = ['https://en.wikipedia.org/wiki/Apache_Cassandra',
+        'https://en.wikipedia.org/wiki/Apache_Cassandra',
+        'https://en.wikipedia.org/wiki/Richard_Stallman',
+        'https://stallman.org/biographies.html#serious',
+        'https://www.gnu.org/software/software.html',
+        'https://www.gnu.org/gnu/gnu.html']
+# Generate seconds and minutes uniformly in [0, 60)
+seconds = ['0' + str(i) for i in range(10)] + [str(i) for i in range(10, 60)]
+minutes = ['0' + str(i) for i in range(10)] + [str(i) for i in range(10, 60)]
+# Sample the hours [10, 24) twice as frequently
+hours = ['0' + str(i) for i in range(10)] + [str(i) for i in range(10, 24) for _ in range(2)]
+# Generate more events on certain days
+days = ['01', '01', '02', '03', '03', '03', '03', '04', '05']
+months = ['01']
+years = ['2018']
+# Generate more events in certain countries
+countries = ['us', 'us', 'us', 'us', 'ru', 'de', 'jp', 'ca', 'in', 'uk', 'uk']
+ttfbs = [i for i in range(100)]
+
+def generate_event():
+    """
+    Generate a single random event to insert into Cassandra
+    """
+    url = random.choice(urls)
+    ua_country = random.choice(countries)
+    ttfb = random.choice(ttfbs)
+
+    # Build the timestamp
+    year = random.choice(years)
+    month = random.choice(months)
+    day = random.choice(days)
+    hour = random.choice(hours)
+    minute = random.choice(minutes)
+    second = random.choice(seconds)
+    record_time = '{}-{}-{}T{}:{}:{}'.format(year, month, day, hour, minute, second)
+
+    # Combine the fieds and generate a UUID hash
+    line = record_time + hour + url + ua_country + str(ttfb)
+    uuid = hashlib.md5(line).hexdigest()
+    return([uuid, record_time, int(hour), url, ua_country, ttfb])
+
+
+def insert_cassandra(event):
+    """
+    Insert an event into the hw10.hw10_p2 table
+    :param event: A single event ot insert
+    """
+    future = session.execute(
+    """
+    INSERT INTO hw10_p2 (uuid, record_time, hour, url, ua_country, ttfb)
+    VALUES (%s, %s, %s, %s, %s, %s)
+    """, event)
+    return future
+
+# Insert 1000 events into Cassandra
+# Write them asynchronously so collecte the returned futures in a list and check for resolution later
+future_list = []
+for count in range(1, 1001):
+    event = generate_event()
+    future_list.append(insert_cassandra(event))
+    if count % 100 == 0:
+        print('Inserted {} total events'.format(count))
+
+# Check each future for resolution
+for future in future_list:
+    try:
+        _ = future.result()
+    except AttributeError:
+        continue
+    assert future.column_names == [u'url', u'ua_country', u'hour', u'record_time', u'ttfb', u'uuid']
+print('All records inserted successfully')
+```
+
+We run our program to insert the records.
+```
+root@b1218b080ff8:~# python cassandra_generator_async.py 
+Inserted 100 total events
+Inserted 200 total events
+Inserted 300 total events
+Inserted 400 total events
+Inserted 500 total events
+Inserted 600 total events
+Inserted 700 total events
+Inserted 800 total events
+Inserted 900 total events
+Inserted 1000 total events
+All records inserted successfully
+```
+
+We also verify from the cqlsh shell that all records were inserted:
+```
+cqlsh:hw10> select * from hw10_p2 limit 10;
+
+ url                                            | ua_country | hour | record_time                     | ttfb | uuid
+------------------------------------------------+------------+------+---------------------------------+------+----------------------------------
+  https://stallman.org/biographies.html#serious |         ca |    7 | 2018-01-02 07:00:49.000000+0000 |   66 | 292fe3c516c9821cdf789548a9b6b8b0
+  https://stallman.org/biographies.html#serious |         ca |    7 | 2018-01-03 07:12:36.000000+0000 |   13 | cd132e22c99454f6251ed7c452508cc1
+  https://stallman.org/biographies.html#serious |         ca |    7 | 2018-01-04 07:26:36.000000+0000 |   62 | 7e4f9d5363ec4637bce3e4949460c5ce
+  https://stallman.org/biographies.html#serious |         ru |    1 | 2018-01-01 01:09:26.000000+0000 |   12 | fc2b0843976ca14e5f6143707a8a5bd8
+ https://en.wikipedia.org/wiki/Richard_Stallman |         in |   13 | 2018-01-03 13:32:26.000000+0000 |   63 | abdbe123638972f4b4a514977aa118af
+ https://en.wikipedia.org/wiki/Apache_Cassandra |         uk |   20 | 2018-01-01 20:09:45.000000+0000 |   72 | 03f19a59e3f0b22e50e4f139b0681468
+ https://en.wikipedia.org/wiki/Apache_Cassandra |         uk |   20 | 2018-01-02 20:18:36.000000+0000 |   17 | 8afcd392e4a18fb0eaa30824caffb82b
+ https://en.wikipedia.org/wiki/Apache_Cassandra |         uk |   20 | 2018-01-05 20:26:25.000000+0000 |   27 | 311689380c9835927ed87a3edc00d8b1
+ https://en.wikipedia.org/wiki/Apache_Cassandra |         uk |   20 | 2018-01-05 20:36:20.000000+0000 |   92 | ca31545861906790a9d8a687bd8961ba
+     https://www.gnu.org/software/software.html |         ru |    8 | 2018-01-01 08:30:04.000000+0000 |    6 | 8830ce7e1b08c7c0091f6f8ffb4c6fa0
+
+(10 rows)
+cqlsh:hw10> select count(*) from hw10_p2;
+
+ count
+-------
+  1000
+
+(1 rows)
+
+Warnings :
+Aggregation query used without partition key
+
+cqlsh:hw10> select * from hw10_p2 where hour = 12 and url = 'https://www.gnu.org/gnu/gnu.html' and ua_country = 'us';
+
+ url                              | ua_country | hour | record_time                     | ttfb | uuid
+----------------------------------+------------+------+---------------------------------+------+----------------------------------
+ https://www.gnu.org/gnu/gnu.html |         us |   12 | 2018-01-01 12:09:56.000000+0000 |   52 | 4438021df775a8c934d5de9b7406860b
+ https://www.gnu.org/gnu/gnu.html |         us |   12 | 2018-01-05 12:24:06.000000+0000 |    6 | d1a57ac5deef555cda7407c53ee41a41
+ https://www.gnu.org/gnu/gnu.html |         us |   12 | 2018-01-05 12:53:19.000000+0000 |   47 | df4b8cab3a2acceb6a71a8c38bd4c84d
+
+(3 rows)
+```
+We can build queries on 2018-01-01 for a single result, 2018-01-04 for zero results, and 2018-01-05 for two results.
+
+**Query 1**
+A few queries demonstrating the count query:
+```
+cqlsh:hw10> select url, ua_country, count(uuid) as num_records from hw10_p2 where record_time >= '2018-01-05T12:00:00' and record_time < '2018-01-05T13:00:00' and hour = 12 and url = 'https://www.gnu.org/gnu/gnu.html' and ua_country = 'us' group by url, ua_country, hour;
+
+ url                              | ua_country | num_records
+----------------------------------+------------+-------------
+ https://www.gnu.org/gnu/gnu.html |         us |           2
+
+(1 rows)
+cqlsh:hw10> select url, ua_country, count(uuid) as num_records from hw10_p2 where record_time >= '2018-01-04T12:00:00' and record_time < '2018-01-04T13:00:00' and hour = 12 and url = 'https://www.gnu.org/gnu/gnu.html' and ua_country = 'us' group by url, ua_country, hour;
+
+ url | ua_country | num_records
+-----+------------+-------------
+
+(0 rows)
+cqlsh:hw10> select url, ua_country, count(uuid) as num_records from hw10_p2 where record_time >= '2018-01-01T12:00:00' and record_time < '2018-01-01T13:00:00' and hour = 12 and url = 'https://www.gnu.org/gnu/gnu.html' and ua_country = 'us' group by url, ua_country, hour;
+
+ url                              | ua_country | num_records
+----------------------------------+------------+-------------
+ https://www.gnu.org/gnu/gnu.html |         us |           1
+
+(1 rows)
+```
+
+**Query 2**
+A few queries demonstrating the average query:
+```
+cqlsh:hw10> select url, ua_country, avg(ttfb) as avg_ttfb from hw10_p2 where record_time >= '2018-01-05T12:00:00' and record_time < '2018-01-05T13:00:00' and hour = 12 and url = 'https://www.gnu.org/gnu/gnu.html' and ua_country = 'us' group by url, ua_country, hour;
+
+ url                              | ua_country | avg_ttfb
+----------------------------------+------------+----------
+ https://www.gnu.org/gnu/gnu.html |         us |     26.5
+
+(1 rows)
+cqlsh:hw10> 
+cqlsh:hw10> select url, ua_country, avg(ttfb) as avg_ttfb from hw10_p2 where record_time >= '2018-01-04T12:00:00' and record_time < '2018-01-04T13:00:00' and hour = 12 and url = 'https://www.gnu.org/gnu/gnu.html' and ua_country = 'us' group by url, ua_country, hour;
+
+ url | ua_country | avg_ttfb
+-----+------------+----------
+
+(0 rows)
+cqlsh:hw10> 
+cqlsh:hw10> select url, ua_country, avg(ttfb) as avg_ttfb from hw10_p2 where record_time >= '2018-01-01T12:00:00' and record_time < '2018-01-01T13:00:00' and hour = 12 and url = 'https://www.gnu.org/gnu/gnu.html' and ua_country = 'us' group by url, ua_country, hour;
+
+ url                              | ua_country | avg_ttfb
+----------------------------------+------------+----------
+ https://www.gnu.org/gnu/gnu.html |         us |       52
+
+(1 rows)
+```
