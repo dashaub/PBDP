@@ -2,7 +2,7 @@
 Fetch blocks at the desired height
 """
 from blockchain import blockexplorer
-import time
+import uuid
 import argparse
 
 parser = argparse.ArgumentParser()
@@ -12,11 +12,12 @@ args = parser.parse_args()
 
 # Get the block at the specified height
 block = blockexplorer.get_block_height(args.block_height)[0]
-transactions = [transaction.hash for transaction in block.transactions]
+# Form tuples with the block height and transaction hash
+transactions = ['{} {}'.format(block.height, tx.hash) for tx in block.transactions]
 
 
 # Write output to file
-output_file = uuid.uuid4().hex
-with open(output_file + '.txt', 'w') as output:
+output_file = 'blocks/' + uuid.uuid4().hex + '.txt'
+with open(output_file, 'w') as output:
     for line in transactions:
         output.write(line + '\n')
