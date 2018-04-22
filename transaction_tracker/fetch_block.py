@@ -16,8 +16,11 @@ block = blockexplorer.get_block_height(args.block_height)[0]
 transactions = ['{} {}'.format(block.height, tx.hash) for tx in block.transactions]
 
 
-# Write output to file
-output_file = 'blocks/' + uuid.uuid4().hex + '.txt'
-with open(output_file, 'w') as output:
-    for line in transactions:
-        output.write(line + '\n')
+def write_block(transactions):
+    """
+    Write a list of transactions to file
+    """
+    output_file = 'blocks/' + uuid.uuid4().hex + '.txt'
+    with open(output_file, 'w') as output:
+        for line in transactions:
+            output.write(line + '\n')
