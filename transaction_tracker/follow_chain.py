@@ -1,10 +1,25 @@
+"""
+Follow the chain, download blocks, and extract transactions
+"""
 from blockchain import blockexplorer
 
 import time
 import uuid
 
+
+def read_api_key():
+    """
+    Read the api key from the file. An API key is not absolutely required for the application
+    to run, but it can help prevent request throttling and support higher query frequency.
+    """
+    try:
+        with open('api.key') as api:
+            return api.readline().strip()
+    except:
+        return None
+
+api_key = read_api_key()
 processed_heights = set()
-api_key = None
 best_height = blockexplorer.get_latest_block(api_code=api_key).height - 1
 
 
@@ -38,7 +53,7 @@ def write_block(transactions, height):
         for line in transactions:
             output.write(line + '\n')
 
-
+print 'Using api key: ' + api_key
 while True:
     # Determine current best block
     current_height = blockexplorer.get_latest_block(api_code=api_key).height
