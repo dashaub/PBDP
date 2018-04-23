@@ -38,7 +38,7 @@ def get_mempool():
     Return a list of transaction hashes currently in the mempool
     """
     unconfirmed = blockexplorer.get_unconfirmed_tx()
-    transactions = ['{}'.format(tx.hash) for tx in unconfirmed]
+    transactions = ['{} unconfirmed'.format(tx.hash) for tx in unconfirmed]
     return transactions
 
 print 'Using api key: ' + api_key

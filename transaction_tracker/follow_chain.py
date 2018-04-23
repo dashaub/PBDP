@@ -39,7 +39,7 @@ def fetch_block(block_height):
     :param block_height: The chain height
     """
     block = blockexplorer.get_block_height(height=block_height, api_code=api_key)[0]
-    transactions = ['{} {}'.format(block.height, tx.hash) for tx in block.transactions]
+    transactions = ['{} {}'.format(tx.hash, block.height) for tx in block.transactions]
     return transactions
 
 def write_block(transactions, height):
