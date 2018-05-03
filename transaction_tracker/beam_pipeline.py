@@ -8,6 +8,8 @@ parser.add_argument('--timestamp', type=str, help = 'Current run timestamp',
 args = parser.parse_args()
 timestamp = args.timestamp
 
+print 'Launching Beam job {}'.format(timestamp)
+
 p = beam.Pipeline(options=PipelineOptions())
 
 confirmed = (p | 'readConfirmed' >> beam.io.ReadFromText('blocks/*.txt')

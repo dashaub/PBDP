@@ -8,6 +8,7 @@ parser.add_argument('--timestamp', type=str, help = 'Current run timestamp',
 args = parser.parse_args()
 timestamp = args.timestamp
 
+print 'Launching InfluxDB insert for job {}'.format(timestamp)
 
 client = InfluxDBClient(database='blockchain')
 #timestamp = '2018-04-23T193341Z'
@@ -38,3 +39,5 @@ count = 0
 for filename in filenames:
      count += count_lines(filename)
 insert_influx(timestamp, count)
+
+print 'InfluxDB insert complete for job {}'.format(timestamp)

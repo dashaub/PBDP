@@ -1,6 +1,7 @@
 """
 Fetch the current mempool
 """
+SLEEP_TIME=2
 
 from blockchain import blockexplorer
 import time
@@ -37,20 +38,24 @@ def get_mempool():
     """
     Return a list of transaction hashes currently in the mempool
     """
-    unconfirmed = blockexplorer.get_unconfirmed_tx()
-    transactions = ['{} unconfirmed'.format(tx.hash) for tx in unconfirmed]
+    # Protect against API timeout with very crude try-catch
+    try:
+        unconfirmed = blockexplorer.get_unconfirmed_tx()
+        transactions = ['{} unconfirmed'.format(tx.hash) for tx in unconfirmed]
+    except:
+        return None
     return transactions
 
 print 'Using api key: ' + api_key
 while True:
     transactions = set()
     # Collect batches together before writing results
-    for _ in range(60):
+    for _ in range(60 / SLEEP_TIME):
         current_transactions = get_mempool()
         # Prevent duplicates within one batch
         for transaction in current_transactions:
             transactions.add(transaction)
-        time.sleep(1)
+        time.sleep(SLEEP_TIME)
     transactions = list(transactions)
     print 'Writing {} transactions'.format(len(transactions))
     write_transactions(transactions)
