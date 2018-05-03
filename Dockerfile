@@ -6,16 +6,19 @@ LABEL maintainer="David Shaub"
 # Install dependencies
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-    && python-setuptools \
-    && python-pip
+       python-setuptools \
+       python-pip \
+       wget
 
 # Install Apache Beam and InfluxDB python connectors
-RUN pip install apache-beam=2.4.0 \
+RUN pip install wheel \
+    && pip install apache-beam==2.4.0 \
+    && pip install blockchain==1.4.0 \
     && pip install influxdb==5.0.0
 
 # Install InfluxDB
 RUN wget https://dl.influxdata.com/influxdb/releases/influxdb_1.5.2_amd64.deb \
-    && sudo dpkg -i influxdb_1.5.2_amd64.deb \
+    && dpkg -i influxdb_1.5.2_amd64.deb \
     && rm influxdb_1.5.2_amd64.deb
 
 # Install Grafana
@@ -25,10 +28,13 @@ RUN wget https://s3-us-west-2.amazonaws.com/grafana-releases/release/grafana_5.0
     && rm grafana_5.0.4_amd64.deb
 
 # Copy program files
-COPY transaction_tracker /root/
+COPY transaction_tracker /root/transaction_tracker
 
 # Cleanup
 RUN rm -Rf /var/lib/apt/lists/* \
     && rm -Rf /usr/share/doc && rm -Rf /usr/share/man \
-    && apt-get clean
+    && apt-get clean \
+    && rm -rf /root/transaction_tracker/beam /root/transaction_tracker/venv \
+    && rm /root/transaction_tracker/blocks/* /root/transaction_tracker/unconfirmed/* 
 
+#CMD []
