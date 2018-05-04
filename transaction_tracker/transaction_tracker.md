@@ -14,7 +14,7 @@ The goal of this project is to build a pipeline that can collect unconfirmed Bit
 
 
 # YouTube Demo
-TODO: Insert link here
+https://youtu.be/0pQ-KI8lsek
 
 # Big Data Source
 Three endpoints from the blockchain.info API serve as data sources. The “single block” endpoint will be used to fetch a block of confirmed transactions, the “latest block” endpoint will be used to determine the current highest block in the chain, and the “unconfirmed transactions” endpoint will be used to fetch transactions that are currently in the mempool but have not been confirmed in a block in the chain. These endpoints are described here: https://blockchain.info/api/blockchain_api
