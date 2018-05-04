@@ -33,7 +33,6 @@ COPY transaction_tracker /root/transaction_tracker
 # Cleanup
 RUN rm -Rf /var/lib/apt/lists/* \
     && rm -Rf /usr/share/doc && rm -Rf /usr/share/man \
-    && apt-get clean \
-    && rm /root/transaction_tracker/blocks/* /root/transaction_tracker/unconfirmed/* 
+    && apt-get clean
 
 CMD ["bash"]
